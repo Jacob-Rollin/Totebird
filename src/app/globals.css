@@ -1,0 +1,225 @@
+@import "tailwindcss";
+
+:root {
+  /* Logo pack palette */
+  --tb-slate: #394554;
+  --tb-slate-soft: #4b5a6a;
+  --tb-ink: #2a3542;
+  --tb-orange: #ee901f;
+  --tb-orange-deep: #d67d12;
+  --tb-orange-soft: #fff1de;
+  --tb-sand: #fff8ef;
+  --tb-mist: #f7f8fa;
+  --tb-line: #e2e7ee;
+  --tb-muted-on-slate: #c9d1db;
+  --background: var(--tb-mist);
+  --foreground: var(--tb-ink);
+  --font-display: var(--font-display);
+  --font-body: var(--font-body);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-body);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  margin: 0;
+  min-height: 100vh;
+}
+
+h1,
+h2,
+h3,
+.font-display {
+  font-family: var(--font-display), ui-serif, Georgia, serif;
+  letter-spacing: -0.02em;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.tb-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 0.625rem;
+  font-weight: 600;
+  padding: 0.75rem 1.25rem;
+  transition: transform 160ms ease, background 160ms ease, box-shadow 160ms ease;
+}
+
+.tb-btn:hover {
+  transform: translateY(-1px);
+}
+
+.tb-btn-primary {
+  background: var(--tb-orange);
+  color: white;
+  box-shadow: 0 10px 24px -16px rgba(234, 88, 12, 0.9);
+}
+
+.tb-btn-primary:hover {
+  background: var(--tb-orange-deep);
+}
+
+.tb-btn-secondary {
+  background: white;
+  color: var(--tb-slate);
+  border: 1px solid var(--tb-line);
+}
+
+.tb-btn-secondary:hover {
+  border-color: #cbd5e1;
+  background: #fff;
+}
+
+.tb-btn-ghost {
+  background: transparent;
+  color: var(--tb-slate);
+  border: 1px solid transparent;
+}
+
+.tb-btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.tb-shell {
+  width: min(1120px, calc(100% - 2rem));
+  margin-inline: auto;
+}
+
+.tb-card-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tb-card-table th,
+.tb-card-table td {
+  text-align: left;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--tb-line);
+  vertical-align: middle;
+}
+
+.tb-card-table th {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--tb-slate-soft);
+  font-weight: 600;
+}
+
+.tb-input,
+.tb-textarea,
+.tb-select {
+  width: 100%;
+  border: 1px solid var(--tb-line);
+  border-radius: 0.625rem;
+  padding: 0.7rem 0.85rem;
+  background: white;
+  color: var(--tb-ink);
+  font: inherit;
+}
+
+.tb-input:focus,
+.tb-textarea:focus,
+.tb-select:focus {
+  outline: 2px solid color-mix(in srgb, var(--tb-orange) 45%, white);
+  border-color: var(--tb-orange);
+}
+
+.tb-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--tb-slate);
+  margin-bottom: 0.35rem;
+}
+
+.tb-panel {
+  background: white;
+  border: 1px solid var(--tb-line);
+  border-radius: 1rem;
+  padding: 1.25rem;
+}
+
+@keyframes tb-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes tb-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes tb-wash {
+  from {
+    background-position: 0% 50%;
+  }
+  to {
+    background-position: 100% 50%;
+  }
+}
+
+.tb-rise {
+  animation: tb-rise 700ms ease both;
+}
+
+.tb-rise-delay {
+  animation: tb-rise 800ms ease 120ms both;
+}
+
+.tb-rise-delay-2 {
+  animation: tb-rise 900ms ease 220ms both;
+}
+
+.tb-float {
+  animation: tb-float 5.5s ease-in-out infinite;
+}
+
+.tb-hero-bg {
+  background:
+    radial-gradient(ellipse 80% 60% at 85% 15%, rgba(249, 115, 22, 0.22), transparent 55%),
+    radial-gradient(ellipse 50% 40% at 10% 90%, rgba(51, 65, 85, 0.08), transparent 50%),
+    linear-gradient(165deg, #fffaf5 0%, #f8fafc 45%, #fff7ed 100%);
+  background-size: 140% 140%;
+  animation: tb-wash 18s ease-in-out infinite alternate;
+}
+
+.tb-section {
+  padding: 5rem 0;
+}
+
+@media (max-width: 640px) {
+  .tb-section {
+    padding: 3.5rem 0;
+  }
+}
