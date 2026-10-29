@@ -1,18 +1,12 @@
 import Image from "next/image";
 import Link from "next/link";
 import { TotebirdLogo } from "@/components/logo";
-import { hasClerk, isDemoMode } from "@/lib/env";
 
-const signupHref = () =>
-  hasClerk() && !isDemoMode() ? "/sign-up" : "/app";
-
-const signinHref = () =>
-  hasClerk() && !isDemoMode() ? "/sign-in" : "/app";
+/** Auth CTAs always target Clerk routes — never silent /app or /demo fallback. */
+const SIGN_UP_HREF = "/sign-up";
+const SIGN_IN_HREF = "/sign-in";
 
 export function LandingPage() {
-  const start = signupHref();
-  const signIn = signinHref();
-
   return (
     <div className="min-h-screen text-[color:var(--tb-ink)]">
       <header className="sticky top-0 z-40 border-b border-[color:var(--tb-line)]/70 bg-[color:var(--tb-mist)]/85 backdrop-blur-md">
@@ -33,10 +27,10 @@ export function LandingPage() {
             </a>
           </nav>
           <div className="flex items-center gap-2">
-            <Link href={signIn} className="tb-btn tb-btn-ghost hidden sm:inline-flex text-sm">
+            <Link href={SIGN_IN_HREF} className="tb-btn tb-btn-ghost hidden sm:inline-flex text-sm">
               Sign in
             </Link>
-            <Link href={start} className="tb-btn tb-btn-primary text-sm px-4 py-2">
+            <Link href={SIGN_UP_HREF} className="tb-btn tb-btn-primary text-sm px-4 py-2">
               Start free
             </Link>
           </div>
@@ -57,7 +51,7 @@ export function LandingPage() {
                 drop files or pay — no accounts, no chase.
               </p>
               <div className="tb-rise-delay-2 mt-8 flex flex-wrap items-center gap-3">
-                <Link href={start} className="tb-btn tb-btn-primary">
+                <Link href={SIGN_UP_HREF} className="tb-btn tb-btn-primary">
                   Start free
                 </Link>
                 <Link href="/demo" className="tb-btn tb-btn-secondary">
@@ -244,7 +238,7 @@ export function LandingPage() {
                     "“Powered by Totebird”",
                   ],
                   cta: "Start free",
-                  href: start,
+                  href: SIGN_UP_HREF,
                   highlight: false,
                 },
                 {
@@ -259,7 +253,7 @@ export function LandingPage() {
                     "No invoice platform fee",
                   ],
                   cta: "Start Solo",
-                  href: start,
+                  href: SIGN_UP_HREF,
                   highlight: true,
                 },
                 {
@@ -273,7 +267,7 @@ export function LandingPage() {
                     "Seats coming later",
                   ],
                   cta: "Start Studio",
-                  href: start,
+                  href: SIGN_UP_HREF,
                   highlight: false,
                 },
               ].map((tier) => (
@@ -398,7 +392,7 @@ export function LandingPage() {
               Create a checklist or invoice link in under a minute.
             </p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-              <Link href={start} className="tb-btn tb-btn-primary">
+              <Link href={SIGN_UP_HREF} className="tb-btn tb-btn-primary">
                 Start free
               </Link>
               <Link href="/demo" className="tb-btn tb-btn-secondary">
