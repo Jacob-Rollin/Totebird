@@ -1,12 +1,12 @@
 import { SignUp } from "@clerk/nextjs";
 import Link from "next/link";
-import { redirect } from "next/navigation";
+import { ClerkSetupHint } from "@/components/clerk-setup-hint";
 import { TotebirdLogo } from "@/components/logo";
-import { hasClerk, isDemoMode } from "@/lib/env";
+import { hasClerk } from "@/lib/env";
 
 export default function SignUpPage() {
-  if (!hasClerk() || isDemoMode()) {
-    redirect("/app");
+  if (!hasClerk()) {
+    return <ClerkSetupHint intent="sign-up" />;
   }
 
   return (
