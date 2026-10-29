@@ -19,7 +19,14 @@ export async function requireSession(): Promise<SessionUser | null> {
   }
 
   const { userId } = await auth();
-  if (!userId) return null;
+  if (!userId) {
+    // Clerk is configured but the visitor isn't signed in. If Neon isn't
+    // usable yet (common before local `db:push`), keep /demo → /app working
+    // via the seeded demo session instead of a hard sign-in wall.
+    const { databaseLooksUsable } = await import("@/lib/data");
+    if (!(await databaseLooksUsable())) return demoSession();
+    return null;
+  }
 
   const clerkUser = await currentUser();
   const email =

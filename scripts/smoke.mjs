@@ -3,6 +3,10 @@
  * Minimal smoke test against a running server (default http://127.0.0.1:3000).
  * Usage: node scripts/smoke.mjs [baseUrl]
  *
+ * Critical paths (/c/demo-checklist, /i/demo-invoice, /app) must not return
+ * Next.js "Application error" HTML — covers Clerk+DATABASE_URL live mode where
+ * seeded demo tokens still come from demo-store.
+ *
  * If CRON_SECRET is set in the environment, /api/cron/reminders is called with
  * Authorization: Bearer … (avoids false 401 failures).
  */
@@ -35,6 +39,15 @@ const paths = [
   "/favicon.ico",
 ];
 
+/** Routes that previously 500'd when Clerk + DATABASE_URL were set. */
+const mustNotAppError = new Set([
+  "/c/demo-checklist",
+  "/i/demo-invoice",
+  "/i/demo-invoice/print",
+  "/app",
+  "/demo",
+]);
+
 let failed = 0;
 for (const path of paths) {
   const url = `${base}${path}`;
@@ -44,8 +57,16 @@ for (const path of paths) {
   }
   try {
     const res = await fetch(url, { redirect: "manual", headers });
-    const ok = res.status >= 200 && res.status < 400;
-    console.log(`${ok ? "OK" : "FAIL"} ${res.status} ${path}`);
+    // 3xx (e.g. /app → /sign-in when Clerk live mode, signed out) is fine.
+    const redirected = res.status >= 300 && res.status < 400;
+    const body =
+      mustNotAppError.has(path) && !redirected ? await res.text() : "";
+    const appErr =
+      Boolean(body) && /Application error|id="__next_error__"/i.test(body);
+    const ok = res.status >= 200 && res.status < 400 && !appErr;
+    console.log(
+      `${ok ? "OK" : "FAIL"} ${res.status} ${path}${appErr ? " (application error)" : ""}`,
+    );
     if (!ok) failed++;
   } catch (e) {
     console.log(`FAIL 000 ${path} (${e.message})`);
