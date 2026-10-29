@@ -52,6 +52,18 @@ export default async function AdminInvoicesPage() {
                     </td>
                   </tr>
                 ))}
+                {rows.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={7}
+                      className="text-[color:var(--tb-slate-soft)]"
+                    >
+                      No invoices yet. If Neon schema isn’t pushed, run{" "}
+                      <code className="text-xs">npm run db:push</code> locally
+                      against DATABASE_URL.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

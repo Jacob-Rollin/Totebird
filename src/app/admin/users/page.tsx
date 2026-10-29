@@ -63,6 +63,16 @@ export default async function AdminUsersPage() {
                     </td>
                   </tr>
                 ))}
+                {users.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={6}
+                      className="text-[color:var(--tb-slate-soft)]"
+                    >
+                      No users yet.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

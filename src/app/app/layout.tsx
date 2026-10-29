@@ -2,6 +2,9 @@ import { redirect } from "next/navigation";
 import { AppNav } from "@/components/app-nav";
 import { requireSession } from "@/lib/auth";
 
+/** Auth + Neon — never statically prerender (Netlify build / headers). */
+export const dynamic = "force-dynamic";
+
 export default async function AppLayout({
   children,
 }: {

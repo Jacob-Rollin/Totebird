@@ -125,18 +125,20 @@ export async function ensureUser(input: {
 }
 
 export async function getUserById(id: string) {
-  if (shouldUseDemoStore()) return demoStore.getUserById(id) ?? null;
-  return (
-    (await getDb().query.users.findFirst({ where: eq(users.id, id) })) ?? null
+  return dbTry(
+    async () =>
+      (await getDb().query.users.findFirst({ where: eq(users.id, id) })) ?? null,
+    () => demoStore.getUserById(id) ?? null,
   );
 }
 
 export async function getUserByClerkId(clerkId: string) {
-  if (shouldUseDemoStore()) return demoStore.getUserByClerkId(clerkId) ?? null;
-  return (
-    (await getDb().query.users.findFirst({
-      where: eq(users.clerkId, clerkId),
-    })) ?? null
+  return dbTry(
+    async () =>
+      (await getDb().query.users.findFirst({
+        where: eq(users.clerkId, clerkId),
+      })) ?? null,
+    () => demoStore.getUserByClerkId(clerkId) ?? null,
   );
 }
 
@@ -213,32 +215,35 @@ export async function updateUserBilling(id: string, patch: UserBillingPatch) {
 }
 
 export async function listUsers() {
-  if (shouldUseDemoStore()) {
-    return demoStore.getUsers().map((u) => ({
-      ...u,
-      linkCount: demoStore.getLinksByUser(u.id).length,
-    }));
-  }
-  const db = getDb();
-  return db
-    .select({
-      id: users.id,
-      clerkId: users.clerkId,
-      email: users.email,
-      name: users.name,
-      plan: users.plan,
-      stripeCustomerId: users.stripeCustomerId,
-      disabled: users.disabled,
-      flagged: users.flagged,
-      flagReason: users.flagReason,
-      createdAt: users.createdAt,
-      updatedAt: users.updatedAt,
-      linkCount: count(links.id),
-    })
-    .from(users)
-    .leftJoin(links, eq(links.userId, users.id))
-    .groupBy(users.id)
-    .orderBy(desc(users.createdAt));
+  return dbTry(
+    async () => {
+      const db = getDb();
+      return db
+        .select({
+          id: users.id,
+          clerkId: users.clerkId,
+          email: users.email,
+          name: users.name,
+          plan: users.plan,
+          stripeCustomerId: users.stripeCustomerId,
+          disabled: users.disabled,
+          flagged: users.flagged,
+          flagReason: users.flagReason,
+          createdAt: users.createdAt,
+          updatedAt: users.updatedAt,
+          linkCount: count(links.id),
+        })
+        .from(users)
+        .leftJoin(links, eq(links.userId, users.id))
+        .groupBy(users.id)
+        .orderBy(desc(users.createdAt));
+    },
+    () =>
+      demoStore.getUsers().map((u) => ({
+        ...u,
+        linkCount: demoStore.getLinksByUser(u.id).length,
+      })),
+  );
 }
 
 export async function updateUserModeration(
@@ -337,9 +342,11 @@ export async function listAllLinks() {
 }
 
 export async function getLinkById(id: string) {
-  if (demoForLink(id)) return demoStore.getLinkById(id) ?? null;
-  return (
-    (await getDb().query.links.findFirst({ where: eq(links.id, id) })) ?? null
+  if (isSeededDemoLinkId(id)) return demoStore.getLinkById(id) ?? null;
+  return dbTry(
+    async () =>
+      (await getDb().query.links.findFirst({ where: eq(links.id, id) })) ?? null,
+    () => demoStore.getLinkById(id) ?? null,
   );
 }
 
@@ -574,16 +581,26 @@ export async function getChecklistBundle(token: string) {
     };
   }
 
-  const db = getDb();
-  const items = await db.query.checklistItems.findMany({
-    where: eq(checklistItems.linkId, link.id),
-  });
-  items.sort((a, b) => a.position - b.position);
-  const fileRows = await db.query.files.findMany({
-    where: eq(files.linkId, link.id),
-  });
-  const owner = await getUserById(link.userId);
-  return { link, items, files: fileRows, owner };
+  return dbTry(
+    async () => {
+      const db = getDb();
+      const items = await db.query.checklistItems.findMany({
+        where: eq(checklistItems.linkId, link.id),
+      });
+      items.sort((a, b) => a.position - b.position);
+      const fileRows = await db.query.files.findMany({
+        where: eq(files.linkId, link.id),
+      });
+      const owner = await getUserById(link.userId);
+      return { link, items, files: fileRows, owner };
+    },
+    () => ({
+      link,
+      items: demoStore.getItemsForLink(link.id),
+      files: demoStore.getFilesForLink(link.id),
+      owner: demoStore.getUserById(link.userId) ?? null,
+    }),
+  );
 }
 
 export async function updateChecklistItem(
@@ -707,58 +724,72 @@ export async function getInvoiceBundle(token: string) {
     };
   }
 
-  const invoice =
-    (await getDb().query.invoices.findFirst({
-      where: eq(invoices.linkId, link.id),
-    })) ?? null;
-  const lineItems = invoice
-    ? await getDb().query.invoiceLineItems.findMany({
-        where: eq(invoiceLineItems.invoiceId, invoice.id),
-      })
-    : [];
-  lineItems.sort((a, b) => a.position - b.position);
-  const owner = await getUserById(link.userId);
-  return { link, invoice, lineItems, owner };
+  return dbTry(
+    async () => {
+      const invoice =
+        (await getDb().query.invoices.findFirst({
+          where: eq(invoices.linkId, link.id),
+        })) ?? null;
+      const lineItems = invoice
+        ? await getDb().query.invoiceLineItems.findMany({
+            where: eq(invoiceLineItems.invoiceId, invoice.id),
+          })
+        : [];
+      lineItems.sort((a, b) => a.position - b.position);
+      const owner = await getUserById(link.userId);
+      return { link, invoice, lineItems, owner };
+    },
+    () => {
+      const invoice = demoStore.getInvoiceByLinkId(link.id) ?? null;
+      return {
+        link,
+        invoice,
+        lineItems: invoice ? demoStore.getLineItems(invoice.id) : [],
+        owner: demoStore.getUserById(link.userId) ?? null,
+      };
+    },
+  );
 }
 
 export async function listAllInvoices() {
-  if (shouldUseDemoStore()) {
-    return demoStore.getInvoices().map((inv) => {
-      const link = demoStore.getLinkById(inv.linkId);
-      return {
-        ...inv,
-        title: link?.title ?? "",
-        token: link?.token ?? "",
-        ownerEmail: link
-          ? (demoStore.getUserById(link.userId)?.email ?? "unknown")
-          : "unknown",
-        linkStatus: link?.status ?? "closed",
-      };
-    });
-  }
-
-  return getDb()
-    .select({
-      id: invoices.id,
-      linkId: invoices.linkId,
-      amountCents: invoices.amountCents,
-      currency: invoices.currency,
-      description: invoices.description,
-      dueAt: invoices.dueAt,
-      status: invoices.status,
-      paidAt: invoices.paidAt,
-      paidManually: invoices.paidManually,
-      createdAt: invoices.createdAt,
-      updatedAt: invoices.updatedAt,
-      title: links.title,
-      token: links.token,
-      ownerEmail: users.email,
-      linkStatus: links.status,
-    })
-    .from(invoices)
-    .innerJoin(links, eq(links.id, invoices.linkId))
-    .innerJoin(users, eq(users.id, links.userId))
-    .orderBy(desc(invoices.createdAt));
+  return dbTry(
+    () =>
+      getDb()
+        .select({
+          id: invoices.id,
+          linkId: invoices.linkId,
+          amountCents: invoices.amountCents,
+          currency: invoices.currency,
+          description: invoices.description,
+          dueAt: invoices.dueAt,
+          status: invoices.status,
+          paidAt: invoices.paidAt,
+          paidManually: invoices.paidManually,
+          createdAt: invoices.createdAt,
+          updatedAt: invoices.updatedAt,
+          title: links.title,
+          token: links.token,
+          ownerEmail: users.email,
+          linkStatus: links.status,
+        })
+        .from(invoices)
+        .innerJoin(links, eq(links.id, invoices.linkId))
+        .innerJoin(users, eq(users.id, links.userId))
+        .orderBy(desc(invoices.createdAt)),
+    () =>
+      demoStore.getInvoices().map((inv) => {
+        const link = demoStore.getLinkById(inv.linkId);
+        return {
+          ...inv,
+          title: link?.title ?? "",
+          token: link?.token ?? "",
+          ownerEmail: link
+            ? (demoStore.getUserById(link.userId)?.email ?? "unknown")
+            : "unknown",
+          linkStatus: link?.status ?? "closed",
+        };
+      }),
+  );
 }
 
 export async function markInvoicePaid(
@@ -803,55 +834,56 @@ export async function setCheckoutSession(linkId: string, sessionId: string) {
 }
 
 export async function getInvoiceByCheckoutSession(sessionId: string) {
-  if (shouldUseDemoStore()) {
-    return (
+  return dbTry(
+    async () =>
+      (await getDb().query.invoices.findFirst({
+        where: eq(invoices.stripeCheckoutSessionId, sessionId),
+      })) ?? null,
+    () =>
       demoStore
         .getInvoices()
-        .find((i) => i.stripeCheckoutSessionId === sessionId) ?? null
-    );
-  }
-  return (
-    (await getDb().query.invoices.findFirst({
-      where: eq(invoices.stripeCheckoutSessionId, sessionId),
-    })) ?? null
+        .find((i) => i.stripeCheckoutSessionId === sessionId) ?? null,
   );
 }
 
 export async function adminMetrics() {
-  if (shouldUseDemoStore()) return demoStore.metrics();
+  return dbTry(
+    async () => {
+      const db = getDb();
+      const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-  const db = getDb();
-  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const [userCount] = await db.select({ n: count() }).from(users);
+      const [activeChecklists] = await db
+        .select({ n: count() })
+        .from(links)
+        .where(and(eq(links.type, "checklist"), eq(links.status, "active")));
+      const [activeInvoices] = await db
+        .select({ n: count() })
+        .from(links)
+        .where(and(eq(links.type, "invoice"), eq(links.status, "active")));
+      const [paid] = await db
+        .select({
+          n: count(),
+          gmv: sql<number>`coalesce(sum(${invoices.amountCents}), 0)`,
+        })
+        .from(invoices)
+        .where(eq(invoices.status, "paid"));
+      const [recent] = await db
+        .select({ n: count() })
+        .from(users)
+        .where(gte(users.createdAt, weekAgo));
 
-  const [userCount] = await db.select({ n: count() }).from(users);
-  const [activeChecklists] = await db
-    .select({ n: count() })
-    .from(links)
-    .where(and(eq(links.type, "checklist"), eq(links.status, "active")));
-  const [activeInvoices] = await db
-    .select({ n: count() })
-    .from(links)
-    .where(and(eq(links.type, "invoice"), eq(links.status, "active")));
-  const [paid] = await db
-    .select({
-      n: count(),
-      gmv: sql<number>`coalesce(sum(${invoices.amountCents}), 0)`,
-    })
-    .from(invoices)
-    .where(eq(invoices.status, "paid"));
-  const [recent] = await db
-    .select({ n: count() })
-    .from(users)
-    .where(gte(users.createdAt, weekAgo));
-
-  return {
-    users: Number(userCount?.n ?? 0),
-    activeChecklists: Number(activeChecklists?.n ?? 0),
-    activeInvoices: Number(activeInvoices?.n ?? 0),
-    paidInvoices: Number(paid?.n ?? 0),
-    gmvCents: Number(paid?.gmv ?? 0),
-    recentSignups: Number(recent?.n ?? 0),
-  };
+      return {
+        users: Number(userCount?.n ?? 0),
+        activeChecklists: Number(activeChecklists?.n ?? 0),
+        activeInvoices: Number(activeInvoices?.n ?? 0),
+        paidInvoices: Number(paid?.n ?? 0),
+        gmvCents: Number(paid?.gmv ?? 0),
+        recentSignups: Number(recent?.n ?? 0),
+      };
+    },
+    () => demoStore.metrics(),
+  );
 }
 
 export async function getUserDetail(id: string) {
@@ -862,20 +894,32 @@ export async function getUserDetail(id: string) {
 }
 
 export async function getLinkProgress(linkId: string) {
-  if (shouldUseDemoStore()) {
-    const items = demoStore.getItemsForLink(linkId);
-    const done = items.filter((i) => i.done).length;
-    return { done, total: items.length, percent: items.length ? Math.round((done / items.length) * 100) : 0 };
-  }
-  const items = await getDb().query.checklistItems.findMany({
-    where: eq(checklistItems.linkId, linkId),
-  });
-  const done = items.filter((i) => i.done).length;
-  return {
-    done,
-    total: items.length,
-    percent: items.length ? Math.round((done / items.length) * 100) : 0,
-  };
+  return dbTry(
+    async () => {
+      const items = await getDb().query.checklistItems.findMany({
+        where: eq(checklistItems.linkId, linkId),
+      });
+      const done = items.filter((i) => i.done).length;
+      return {
+        done,
+        total: items.length,
+        percent: items.length
+          ? Math.round((done / items.length) * 100)
+          : 0,
+      };
+    },
+    () => {
+      const items = demoStore.getItemsForLink(linkId);
+      const done = items.filter((i) => i.done).length;
+      return {
+        done,
+        total: items.length,
+        percent: items.length
+          ? Math.round((done / items.length) * 100)
+          : 0,
+      };
+    },
+  );
 }
 
 export type { Invoice, InvoiceLineItem, Link, User };
