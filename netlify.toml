@@ -29,6 +29,14 @@
 # (netlify/functions/scheduled-reminders.mts → schedule "0 14 * * *").
 # It POSTs /api/cron/reminders — set CRON_SECRET + RESEND_API_KEY to send for real.
 
+# Skip Deploy Previews and branch deploys to save Netlify build credits.
+# ignore exit 0 = skip this context; production (main) builds are unchanged.
+[context.deploy-preview]
+  ignore = "exit 0"
+
+[context.branch-deploy]
+  ignore = "exit 0"
+
 [dev]
   command = "npm run dev"
   targetPort = 3000
