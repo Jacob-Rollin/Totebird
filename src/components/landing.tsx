@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 import { TotebirdLogo } from "@/components/logo";
 
@@ -6,12 +5,96 @@ import { TotebirdLogo } from "@/components/logo";
 const SIGN_UP_HREF = "/sign-up";
 const SIGN_IN_HREF = "/sign-in";
 
+/** Static product preview for the hero media plane — not interactive. */
+function HeroProductMock() {
+  return (
+    <div
+      className="tb-float relative h-full min-h-[340px] w-full overflow-hidden bg-[color:var(--tb-mist)] shadow-[0_28px_64px_-36px_rgba(57,69,84,0.55)] sm:min-h-[420px] lg:min-h-[520px]"
+      role="img"
+      aria-label="Client checklist link preview: Brand kit intake with progress and file drop"
+    >
+      {/* Slate product chrome */}
+      <div className="flex items-center gap-3 bg-[color:var(--tb-slate)] px-5 py-4 sm:px-6">
+        <span
+          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[color:var(--tb-orange)] text-sm font-bold text-white"
+          aria-hidden
+        >
+          T
+        </span>
+        <div className="min-w-0">
+          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-[color:var(--tb-muted-on-slate)]">
+            Checklist from Maya Studio
+          </p>
+          <p className="truncate text-sm font-semibold text-white sm:text-base">
+            Brand kit intake
+          </p>
+        </div>
+      </div>
+
+      <div className="space-y-5 px-5 py-5 sm:px-6 sm:py-6">
+        <div>
+          <div className="mb-1.5 flex justify-between text-xs text-[color:var(--tb-slate-soft)]">
+            <span>2 of 4 complete</span>
+            <span>50%</span>
+          </div>
+          <div className="h-2 overflow-hidden rounded-full bg-[color:var(--tb-line)]">
+            <div
+              className="h-full w-1/2 rounded-full bg-[color:var(--tb-orange)]"
+              aria-hidden
+            />
+          </div>
+        </div>
+
+        <ul className="space-y-2.5" aria-hidden>
+          <li className="flex items-start gap-3 border-b border-[color:var(--tb-line)]/80 pb-3">
+            <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border border-[color:var(--tb-orange)] bg-[color:var(--tb-orange)] text-[10px] font-bold text-white">
+              ✓
+            </span>
+            <span className="text-sm text-[color:var(--tb-slate-soft)] line-through">
+              Confirm project name
+            </span>
+          </li>
+          <li className="flex items-start gap-3 border-b border-[color:var(--tb-line)]/80 pb-3">
+            <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border border-[color:var(--tb-orange)] bg-[color:var(--tb-orange)] text-[10px] font-bold text-white">
+              ✓
+            </span>
+            <span className="text-sm text-[color:var(--tb-slate-soft)] line-through">
+              Upload logo (SVG or PNG)
+            </span>
+          </li>
+          <li className="flex items-start gap-3 border-b border-[color:var(--tb-line)]/80 pb-3">
+            <span className="mt-0.5 h-4 w-4 shrink-0 rounded border border-[color:var(--tb-line)] bg-white" />
+            <span className="text-sm text-[color:var(--tb-ink)]">
+              Brand colors &amp; fonts
+            </span>
+          </li>
+          <li className="flex items-start gap-3">
+            <span className="mt-0.5 h-4 w-4 shrink-0 rounded border border-[color:var(--tb-line)] bg-white" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-[color:var(--tb-ink)]">
+                Drop signed W-9
+              </p>
+              <div className="mt-2 rounded-lg border border-dashed border-[color:var(--tb-line)] bg-white px-3 py-3 text-xs text-[color:var(--tb-slate-soft)]">
+                Tap to upload · max 10 MB
+              </div>
+            </div>
+          </li>
+        </ul>
+
+        <p className="pt-1 text-center text-[11px] text-[color:var(--tb-slate-soft)]">
+          No account needed · Powered by Totebird
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export function LandingPage() {
   return (
     <div className="min-h-screen text-[color:var(--tb-ink)]">
       <header className="sticky top-0 z-40 border-b border-[color:var(--tb-line)]/70 bg-[color:var(--tb-mist)]/85 backdrop-blur-md">
         <div className="tb-shell flex items-center justify-between gap-4 py-3">
-          <TotebirdLogo size="md" variant="header" />
+          <TotebirdLogo size="sm" variant="header" />
           <nav className="hidden items-center gap-6 text-sm font-medium text-[color:var(--tb-slate-soft)] md:flex">
             <a href="#how" className="hover:text-[color:var(--tb-ink)]">
               How it works
@@ -38,9 +121,9 @@ export function LandingPage() {
       </header>
 
       <main>
-        {/* Hero — brand first, one composition */}
+        {/* Hero — brand first, one composition; one strong logo on the left */}
         <section className="tb-hero-bg relative overflow-hidden">
-          <div className="tb-shell grid min-h-[min(92vh,820px)] items-center gap-10 py-16 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16">
+          <div className="tb-shell grid min-h-[min(92vh,820px)] items-center gap-10 py-12 lg:grid-cols-[1.05fr_0.95fr] lg:gap-12 lg:py-16">
             <div className="tb-rise">
               <TotebirdLogo size="hero" href={null} variant="wordmark" />
               <h1 className="font-display mt-8 max-w-xl text-4xl leading-[1.08] text-[color:var(--tb-ink)] sm:text-5xl lg:text-[3.4rem]">
@@ -63,37 +146,9 @@ export function LandingPage() {
               </p>
             </div>
 
-            <div className="tb-float relative mx-auto w-full max-w-lg lg:mx-0">
-              <div
-                aria-hidden
-                className="absolute -inset-6 rounded-[2rem] bg-[radial-gradient(circle_at_30%_20%,rgba(249,115,22,0.18),transparent_55%)]"
-              />
-              <div className="relative overflow-hidden rounded-[1.5rem] border border-[color:var(--tb-line)] bg-white p-6 shadow-[0_30px_80px_-40px_rgba(57,69,84,0.45)] sm:p-8">
-                <Image
-                  src="/brand/lockup-horizontal.png"
-                  alt="Totebird — One link out. Everything flies home."
-                  width={1200}
-                  height={260}
-                  className="h-auto w-full object-contain"
-                  priority
-                />
-                <div className="mt-6 grid grid-cols-[auto_1fr] items-center gap-4 rounded-xl bg-[color:var(--tb-slate)] p-4">
-                  <Image
-                    src="/brand/icon/icon-orange-bird.png"
-                    alt=""
-                    width={72}
-                    height={72}
-                    className="h-14 w-14 object-contain"
-                  />
-                  <Image
-                    src="/brand/wordmark-white-orange.png"
-                    alt="Totebird"
-                    width={480}
-                    height={120}
-                    className="h-auto w-full max-w-[280px] object-contain"
-                  />
-                </div>
-              </div>
+            {/* Full-bleed product visual within the hero media column */}
+            <div className="relative -mx-4 w-[calc(100%+2rem)] sm:mx-0 sm:w-full lg:justify-self-stretch">
+              <HeroProductMock />
             </div>
           </div>
         </section>

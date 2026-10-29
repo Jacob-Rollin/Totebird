@@ -21,8 +21,8 @@ export function TotebirdLogo({
         : variant === "header"
           ? "/brand/header-wordmark.png"
           : variant === "wordmark-dark"
-            ? "/brand/wordmark-white-orange.png"
-            : "/brand/wordmark-slate-orange.png";
+            ? "/brand/wordmark-white-orange.svg"
+            : "/brand/wordmark-slate-orange.svg";
 
   const aspect =
     variant === "icon" ? 1 : variant === "lockup" ? 4.6 : variant === "header" ? 4.3 : 4;
@@ -35,6 +35,7 @@ export function TotebirdLogo({
       width={Math.round(h * aspect)}
       className="h-auto w-auto max-w-full object-contain"
       priority={size === "hero" || size === "lg"}
+      unoptimized={variant === "wordmark" || variant === "wordmark-dark"}
     />
   );
 

@@ -170,13 +170,14 @@ a {
   }
 }
 
+/* Soft GPU-friendly drift — small amplitude, long cycle (avoid laggy bounce). */
 @keyframes tb-float {
   0%,
   100% {
-    transform: translateY(0);
+    transform: translate3d(0, 0, 0);
   }
   50% {
-    transform: translateY(-8px);
+    transform: translate3d(0, -3px, 0);
   }
 }
 
@@ -202,7 +203,9 @@ a {
 }
 
 .tb-float {
-  animation: tb-float 5.5s ease-in-out infinite;
+  transform: translate3d(0, 0, 0);
+  animation: tb-float 10s ease-in-out infinite;
+  will-change: transform;
 }
 
 .tb-hero-bg {
@@ -212,6 +215,24 @@ a {
     linear-gradient(165deg, #fffaf5 0%, #f8fafc 45%, #fff7ed 100%);
   background-size: 140% 140%;
   animation: tb-wash 18s ease-in-out infinite alternate;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tb-rise,
+  .tb-rise-delay,
+  .tb-rise-delay-2,
+  .tb-float,
+  .tb-hero-bg {
+    animation: none !important;
+  }
+
+  .tb-float {
+    will-change: auto;
+  }
+
+  .tb-btn:hover {
+    transform: none;
+  }
 }
 
 .tb-section {
