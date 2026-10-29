@@ -1,9 +1,29 @@
+# Totebird — Netlify + Next.js (App Router)
+# Site title: totebird — link repo Jacob-Rollin/Totebird in Site configuration.
+#
+# Production branch: prefer `main` after merging PR #1,
+# or temporarily deploy `cursor/totebird-mvp-scaffold-e511`.
+#
+# Required early env (Site configuration → Environment variables):
+#   NEXT_PUBLIC_APP_URL = https://YOUR-SITE.netlify.app
+#   ADMIN_EMAIL         = your signup email
+# Full guide: see README “Deploy on Netlify” (don’t paste every key here).
+
 [build]
   command = "npm run build"
+  # @netlify/plugin-nextjs owns the publish output — leave as .next
   publish = ".next"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# Daily reminder cron is declared on the function itself
+# (netlify/functions/scheduled-reminders.mts → schedule "0 14 * * *").
+# It POSTs /api/cron/reminders — set CRON_SECRET + RESEND_API_KEY to send for real.
 
 [dev]
   command = "npm run dev"

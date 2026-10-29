@@ -36,6 +36,12 @@ export function AppNav({
                 >
                   Billing
                 </Link>
+                <Link
+                  href="/app/settings"
+                  className="hover:text-[color:var(--tb-ink)]"
+                >
+                  Settings
+                </Link>
               </>
             ) : (
               <>
