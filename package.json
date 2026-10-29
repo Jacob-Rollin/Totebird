@@ -18,6 +18,7 @@
     "@aws-sdk/s3-request-presigner": "^3.1159.0",
     "@clerk/nextjs": "^7.9.22",
     "@neondatabase/serverless": "^1.2.0",
+    "@netlify/functions": "^6.0.3",
     "drizzle-orm": "^0.45.4",
     "nanoid": "^6.0.2",
     "next": "15.5.28",
