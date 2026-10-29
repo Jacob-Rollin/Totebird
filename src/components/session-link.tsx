@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
 import type { ComponentProps } from "react";
+import { SoftBoundary } from "@/components/soft-boundary";
 
 type SessionLinkProps = Omit<ComponentProps<typeof Link>, "href"> & {
   /** Href when signed out / Clerk unavailable. */
@@ -28,11 +29,13 @@ export function SessionLink({
     return <Link href={whenGuest} {...props} />;
   }
   return (
-    <ClerkSessionLink
-      whenGuest={whenGuest}
-      whenSignedIn={whenSignedIn}
-      {...props}
-    />
+    <SoftBoundary fallback={<Link href={whenGuest} {...props} />}>
+      <ClerkSessionLink
+        whenGuest={whenGuest}
+        whenSignedIn={whenSignedIn}
+        {...props}
+      />
+    </SoftBoundary>
   );
 }
 

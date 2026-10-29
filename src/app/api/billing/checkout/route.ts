@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireSession } from "@/lib/auth";
+import { originFromRequest } from "@/lib/env-public";
 import { createSubscriptionCheckout } from "@/lib/stripe";
 
 export async function POST(req: Request) {
@@ -18,6 +19,7 @@ export async function POST(req: Request) {
     customerEmail: session.email,
     customerId: session.stripeCustomerId,
     userId: session.id,
+    returnBaseUrl: originFromRequest(req),
   });
 
   return NextResponse.json(result);

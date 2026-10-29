@@ -37,25 +37,49 @@ export default async function BillingPage({
   // Live: ?upgraded=1 is only a Checkout return flag — not proof the webhook wrote Neon.
   // Sync from Stripe (session_id or active subscription by customer/email) so the UI
   // updates even when the webhook silently no-op'd or lagged.
+  // Soft-fail: Stripe/Neon blips must never 500 this page into error.tsx (www cutover).
   let plan = session.plan;
-  if (q.upgraded === "1" && !isDemoMode() && plan === "free") {
-    const synced = await syncPlanAfterUpgradeReturn({
-      userId: session.id,
-      email: session.email,
-      stripeCustomerId: session.stripeCustomerId,
-      checkoutSessionId: q.session_id || null,
-    });
-    if (synced?.plan) {
-      plan = synced.plan;
-    } else {
-      // Re-read Neon in case the webhook landed between requireSession and now.
-      const fresh = await getUserByIdBilling(session.id);
-      if (fresh?.plan) plan = fresh.plan;
+  let syncWarning: string | null = null;
+  const isDemoUser = session.clerkId === "user_demo";
+  if (
+    q.upgraded === "1" &&
+    !isDemoMode() &&
+    !isDemoUser &&
+    plan === "free"
+  ) {
+    try {
+      const synced = await syncPlanAfterUpgradeReturn({
+        userId: session.id,
+        email: session.email,
+        stripeCustomerId: session.stripeCustomerId,
+        checkoutSessionId: q.session_id || null,
+      });
+      if (synced?.plan) {
+        plan = synced.plan;
+      } else {
+        // Re-read Neon in case the webhook landed between requireSession and now.
+        const fresh = await getUserByIdBilling(session.id);
+        if (fresh?.plan) plan = fresh.plan;
+        if (plan === "free") {
+          syncWarning =
+            "Checkout completed — still confirming your plan with Stripe. Refresh in a moment if this still says Free.";
+        }
+      }
+    } catch (err) {
+      console.error("[totebird] billing upgrade sync threw", err);
+      syncWarning =
+        "Checkout completed — we could not refresh your plan yet. Refresh this page, or open Billing again in a minute.";
     }
   }
 
-  const active = await countActiveLinks(session.id);
-  const used = await storageUsedByUser(session.id);
+  let active = 0;
+  let used = 0;
+  try {
+    active = await countActiveLinks(session.id);
+    used = await storageUsedByUser(session.id);
+  } catch (err) {
+    console.error("[totebird] billing usage stats failed", err);
+  }
   const limits = PLAN_LIMITS[plan];
 
   return (
@@ -67,10 +91,15 @@ export default async function BillingPage({
 
       {q.upgraded === "1" && (
         <p className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-          Plan updated{isDemoMode() ? " (demo)" : ""}
-          {!isDemoMode() && plan === "free"
+          Plan updated{isDemoMode() || isDemoUser ? " (demo)" : ""}
+          {!isDemoMode() && !isDemoUser && plan === "free"
             ? " — syncing subscription; refresh if plan still shows Free."
             : "."}
+        </p>
+      )}
+      {syncWarning && (
+        <p className="mt-4 rounded-lg border border-[color:var(--tb-orange)]/40 bg-[color:var(--tb-orange-soft)] px-4 py-3 text-sm text-[color:var(--tb-slate)]">
+          {syncWarning}
         </p>
       )}
       {q.canceled === "1" && (
@@ -131,7 +160,7 @@ export default async function BillingPage({
                   <BillingActions
                     plan={p}
                     mode="upgrade"
-                    demoMode={isDemoMode()}
+                    demoMode={isDemoMode() || isDemoUser}
                   />
                 </div>
               )}
@@ -140,7 +169,7 @@ export default async function BillingPage({
                   <BillingActions
                     plan={p}
                     mode="portal"
-                    demoMode={isDemoMode()}
+                    demoMode={isDemoMode() || isDemoUser}
                   />
                 </div>
               )}

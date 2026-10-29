@@ -156,9 +156,12 @@ export async function createSubscriptionCheckout(input: {
   customerEmail: string;
   customerId?: string | null;
   userId: string;
+  /** Prefer request origin (www) over stale NEXT_PUBLIC_APP_URL. */
+  returnBaseUrl?: string | null;
 }) {
   const stripe = getStripe();
   const priceId = billingPriceId(input.plan, input.interval);
+  const base = (input.returnBaseUrl || appUrl()).replace(/\/$/, "");
   if (!stripe) {
     return {
       ok: false as const,
@@ -184,8 +187,8 @@ export async function createSubscriptionCheckout(input: {
       customer_email: input.customerId ? undefined : input.customerEmail,
       line_items: [{ price: priceId, quantity: 1 }],
       // {CHECKOUT_SESSION_ID} is replaced by Stripe so /billing can sync if the webhook lags.
-      success_url: `${appUrl()}/app/billing?upgraded=1&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${appUrl()}/app/billing?canceled=1`,
+      success_url: `${base}/app/billing?upgraded=1&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${base}/app/billing?canceled=1`,
       client_reference_id: input.userId,
       allow_promotion_codes: true,
       metadata: {
@@ -212,8 +215,10 @@ export async function createSubscriptionCheckout(input: {
 
 export async function createCustomerPortalSession(input: {
   customerId: string;
+  returnBaseUrl?: string | null;
 }) {
   const stripe = getStripe();
+  const base = (input.returnBaseUrl || appUrl()).replace(/\/$/, "");
   if (!stripe) {
     return {
       ok: false as const,
@@ -234,7 +239,7 @@ export async function createCustomerPortalSession(input: {
 
   const session = await stripe.billingPortal.sessions.create({
     customer: input.customerId,
-    return_url: `${appUrl()}/app/billing`,
+    return_url: `${base}/app/billing`,
   });
 
   return {
