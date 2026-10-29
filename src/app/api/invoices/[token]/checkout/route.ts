@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getInvoiceBundle, setCheckoutSession } from "@/lib/data";
+import { isStripeConnectEnabled } from "@/lib/env";
 import { createInvoiceCheckout } from "@/lib/stripe";
 
 export async function POST(
@@ -11,7 +12,7 @@ export async function POST(
   if (!bundle || !bundle.invoice) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-  const { link, invoice, lineItems } = bundle;
+  const { link, invoice, lineItems, owner } = bundle;
   if (
     link.status === "closed" ||
     link.status === "disabled" ||
@@ -22,6 +23,11 @@ export async function POST(
   if (invoice.status === "paid") {
     return NextResponse.json({ error: "Already paid" }, { status: 400 });
   }
+
+  const connectReady =
+    isStripeConnectEnabled() &&
+    Boolean(owner?.stripeConnectAccountId) &&
+    Boolean(owner?.stripeConnectChargesEnabled);
 
   const checkout = await createInvoiceCheckout({
     amountCents: invoice.amountCents,
@@ -36,6 +42,8 @@ export async function POST(
       quantity: li.quantity,
       unitAmountCents: li.unitAmountCents,
     })),
+    connectAccountId: connectReady ? owner!.stripeConnectAccountId : null,
+    ownerPlan: owner?.plan ?? "free",
   });
 
   if (checkout.sessionId) {
@@ -47,5 +55,6 @@ export async function POST(
     url: checkout.url,
     message: checkout.message,
     demo: checkout.demo,
+    connect: connectReady ? "direct" : "platform",
   });
 }

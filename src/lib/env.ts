@@ -30,6 +30,23 @@ export function hasStripe() {
   return Boolean(process.env.STRIPE_SECRET_KEY);
 }
 
+/** Express Connect + Direct invoice charges (off until Dashboard + flag). */
+export function isStripeConnectEnabled() {
+  return truthy(process.env.STRIPE_CONNECT_ENABLED) && hasStripe();
+}
+
+/**
+ * Platform fee on Free-plan Connect invoice Checkout, in basis points.
+ * Default 100 = 1% when Connect is enabled and env unset.
+ * Solo/Studio ignore this (0 fee in applicationFeeCents).
+ */
+export function platformFeeBps() {
+  const raw = process.env.STRIPE_PLATFORM_FEE_BPS;
+  if (raw === undefined || raw === "") return 100;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 100;
+}
+
 export function isDemoMode() {
   if (truthy(process.env.DEMO_MODE)) return true;
   return !hasDatabase() || !hasClerk();
@@ -69,5 +86,6 @@ export function integrationStatus() {
     r2: hasR2(),
     resend: hasResend(),
     stripe: hasStripe(),
+    stripeConnect: isStripeConnectEnabled(),
   };
 }

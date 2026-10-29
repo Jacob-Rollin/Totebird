@@ -106,7 +106,18 @@ export async function listUsers() {
 export async function updateUserModeration(
   id: string,
   patch: Partial<
-    Pick<User, "disabled" | "flagged" | "flagReason" | "plan" | "stripeCustomerId">
+    Pick<
+      User,
+      | "disabled"
+      | "flagged"
+      | "flagReason"
+      | "plan"
+      | "stripeCustomerId"
+      | "stripeSubscriptionId"
+      | "stripeConnectAccountId"
+      | "stripeConnectChargesEnabled"
+      | "stripeConnectDetailsSubmitted"
+    >
   >,
 ) {
   if (shouldUseDemoStore()) return demoStore.updateUser(id, patch);

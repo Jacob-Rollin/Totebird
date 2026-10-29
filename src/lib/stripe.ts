@@ -1,13 +1,13 @@
-import Stripe from "stripe";
-import { appUrl, hasStripe } from "@/lib/env";
+import { appUrl, platformFeeBps } from "@/lib/env";
+import { getStripe } from "@/lib/stripe-client";
 import type { Plan } from "@/lib/plans";
 
-export function getStripe() {
-  if (!hasStripe()) return null;
-  return new Stripe(process.env.STRIPE_SECRET_KEY!);
-}
+export { getStripe };
 
-export function billingPriceId(plan: "solo" | "studio", interval: "month" | "year") {
+export function billingPriceId(
+  plan: "solo" | "studio",
+  interval: "month" | "year",
+) {
   const map: Record<string, string | undefined> = {
     "solo:month": process.env.STRIPE_PRICE_SOLO_MONTHLY,
     "solo:year": process.env.STRIPE_PRICE_SOLO_YEARLY,
@@ -15,6 +15,38 @@ export function billingPriceId(plan: "solo" | "studio", interval: "month" | "yea
     "studio:year": process.env.STRIPE_PRICE_STUDIO_YEARLY,
   };
   return map[`${plan}:${interval}`] || null;
+}
+
+/** Map a Stripe Price ID back to Totebird plan (Customer Portal switches). */
+export function planFromPriceId(priceId: string | null | undefined): Plan | null {
+  if (!priceId) return null;
+  const entries: [Plan, string | undefined][] = [
+    ["solo", process.env.STRIPE_PRICE_SOLO_MONTHLY],
+    ["solo", process.env.STRIPE_PRICE_SOLO_YEARLY],
+    ["studio", process.env.STRIPE_PRICE_STUDIO_MONTHLY],
+    ["studio", process.env.STRIPE_PRICE_STUDIO_YEARLY],
+  ];
+  for (const [plan, id] of entries) {
+    if (id && id === priceId) return plan;
+  }
+  return null;
+}
+
+export function hasBillingPrices() {
+  return Boolean(
+    process.env.STRIPE_PRICE_SOLO_MONTHLY ||
+      process.env.STRIPE_PRICE_SOLO_YEARLY ||
+      process.env.STRIPE_PRICE_STUDIO_MONTHLY ||
+      process.env.STRIPE_PRICE_STUDIO_YEARLY,
+  );
+}
+
+/** Application fee cents for Connect Direct charges (Free plan only). */
+export function applicationFeeCents(amountCents: number, plan: Plan) {
+  if (plan !== "free") return 0;
+  const bps = platformFeeBps();
+  if (bps <= 0) return 0;
+  return Math.max(0, Math.round((amountCents * bps) / 10_000));
 }
 
 export async function createInvoiceCheckout(input: {
@@ -26,6 +58,9 @@ export async function createInvoiceCheckout(input: {
   clientEmail?: string | null;
   linkId: string;
   lineItems?: { description: string; quantity: number; unitAmountCents: number }[];
+  /** When Connect Direct is live: Express acct_… with charges_enabled */
+  connectAccountId?: string | null;
+  ownerPlan?: Plan;
 }) {
   const stripe = getStripe();
   if (!stripe) {
@@ -63,17 +98,48 @@ export async function createInvoiceCheckout(input: {
           },
         ];
 
-  const session = await stripe.checkout.sessions.create({
+  const useConnect =
+    Boolean(input.connectAccountId) &&
+    process.env.STRIPE_CONNECT_ENABLED === "true";
+
+  const fee = useConnect
+    ? applicationFeeCents(input.amountCents, input.ownerPlan ?? "free")
+    : 0;
+
+  const sessionParams: Parameters<typeof stripe.checkout.sessions.create>[0] = {
     mode: "payment",
     customer_email: input.clientEmail || undefined,
     line_items,
     success_url: `${appUrl()}/i/${input.token}?paid=1`,
     cancel_url: `${appUrl()}/i/${input.token}?canceled=1`,
+    client_reference_id: input.linkId,
     metadata: {
       linkId: input.linkId,
       token: input.token,
+      connect: useConnect ? "direct" : "platform",
     },
-  });
+  };
+
+  // Direct charge: optional application fee on Free (Solo/Studio = 0)
+  if (useConnect && fee > 0) {
+    sessionParams.payment_intent_data = {
+      application_fee_amount: fee,
+    };
+  }
+
+  const requestOptions = useConnect
+    ? {
+        stripeAccount: input.connectAccountId!,
+        idempotencyKey: `inv_checkout_${input.linkId}_${input.amountCents}`,
+      }
+    : { idempotencyKey: `inv_checkout_${input.linkId}_${input.amountCents}` };
+
+  // TODO(Phase 3): when STRIPE_CONNECT_ENABLED and freelancer lacks charges_enabled,
+  // prefer blocking pay with "Connect your Stripe" instead of silent platform Checkout.
+  const session = await stripe.checkout.sessions.create(
+    sessionParams,
+    requestOptions,
+  );
 
   return {
     ok: true as const,
@@ -111,24 +177,29 @@ export async function createSubscriptionCheckout(input: {
     };
   }
 
-  const session = await stripe.checkout.sessions.create({
-    mode: "subscription",
-    customer: input.customerId || undefined,
-    customer_email: input.customerId ? undefined : input.customerEmail,
-    line_items: [{ price: priceId, quantity: 1 }],
-    success_url: `${appUrl()}/app/billing?upgraded=1`,
-    cancel_url: `${appUrl()}/app/billing?canceled=1`,
-    metadata: {
-      userId: input.userId,
-      plan: input.plan,
-    },
-    subscription_data: {
+  const session = await stripe.checkout.sessions.create(
+    {
+      mode: "subscription",
+      customer: input.customerId || undefined,
+      customer_email: input.customerId ? undefined : input.customerEmail,
+      line_items: [{ price: priceId, quantity: 1 }],
+      success_url: `${appUrl()}/app/billing?upgraded=1`,
+      cancel_url: `${appUrl()}/app/billing?canceled=1`,
+      client_reference_id: input.userId,
+      allow_promotion_codes: true,
       metadata: {
         userId: input.userId,
         plan: input.plan,
       },
+      subscription_data: {
+        metadata: {
+          userId: input.userId,
+          plan: input.plan,
+        },
+      },
     },
-  });
+    { idempotencyKey: `sub_checkout_${input.userId}_${input.plan}_${input.interval}` },
+  );
 
   return {
     ok: true as const,
