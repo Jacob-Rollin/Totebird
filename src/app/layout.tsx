@@ -3,6 +3,7 @@ import { Fraunces, Source_Sans_3 } from "next/font/google";
 import { Providers } from "@/components/providers";
 import { DemoBanner } from "@/components/demo-banner";
 import { hasClerkPublishable } from "@/lib/env-public";
+import { safeMetadataBase } from "@/lib/metadata-base";
 import "./globals.css";
 
 const display = Fraunces({
@@ -18,9 +19,7 @@ const body = Source_Sans_3({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
-  ),
+  metadataBase: safeMetadataBase(),
   title: {
     default: "Totebird — One link out. Everything flies home.",
     template: "%s · Totebird",
