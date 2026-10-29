@@ -16,8 +16,71 @@ import {
 import { hasDatabase, isDemoMode } from "@/lib/env";
 import { newId, newToken } from "@/lib/ids";
 
+/** Seeded /demo link tokens — always served from demo-store, even in live mode. */
+const SEEDED_DEMO_TOKENS = new Set(["demo-checklist", "demo-invoice"]);
+const SEEDED_DEMO_LINK_IDS = new Set([
+  "lnk_demo_checklist",
+  "lnk_demo_invoice",
+]);
+
+export function isSeededDemoToken(token: string) {
+  return SEEDED_DEMO_TOKENS.has(token);
+}
+
+function isSeededDemoLinkId(linkId: string) {
+  return SEEDED_DEMO_LINK_IDS.has(linkId);
+}
+
+/**
+ * When DATABASE_URL is set but Neon schema was never pushed (or the DB is
+ * unreachable), mark the process as demo-fallback so /app and cron don't 500.
+ */
+let databaseUnusable = false;
+
 function shouldUseDemoStore() {
-  return isDemoMode() || !hasDatabase();
+  return databaseUnusable || isDemoMode() || !hasDatabase();
+}
+
+function noteDbFailure(err: unknown) {
+  if (databaseUnusable) return;
+  databaseUnusable = true;
+  console.error(
+    "[totebird] Database query failed; falling back to in-memory demo store for this process. Run `npm run db:push` when ready.",
+    err,
+  );
+}
+
+async function dbTry<T>(
+  run: () => Promise<T>,
+  fallback: () => T | Promise<T>,
+): Promise<T> {
+  if (shouldUseDemoStore()) return fallback();
+  try {
+    return await run();
+  } catch (err) {
+    noteDbFailure(err);
+    return fallback();
+  }
+}
+
+/** Probe Neon once — false when URL is set but schema/network isn't ready. */
+export async function databaseLooksUsable(): Promise<boolean> {
+  if (shouldUseDemoStore()) return false;
+  try {
+    await getDb().query.users.findFirst();
+    return true;
+  } catch (err) {
+    noteDbFailure(err);
+    return false;
+  }
+}
+
+function demoForToken(token: string) {
+  return shouldUseDemoStore() || isSeededDemoToken(token);
+}
+
+function demoForLink(linkId: string) {
+  return shouldUseDemoStore() || isSeededDemoLinkId(linkId);
 }
 
 export async function ensureUser(input: {
@@ -25,37 +88,40 @@ export async function ensureUser(input: {
   email: string;
   name?: string | null;
 }): Promise<User> {
-  if (shouldUseDemoStore()) return demoStore.upsertUser(input);
-
-  const db = getDb();
-  const existing = await db.query.users.findFirst({
-    where: eq(users.clerkId, input.clerkId),
-  });
-  if (existing) {
-    if (existing.email !== input.email || existing.name !== input.name) {
-      const [updated] = await db
-        .update(users)
-        .set({
+  return dbTry(
+    async () => {
+      const db = getDb();
+      const existing = await db.query.users.findFirst({
+        where: eq(users.clerkId, input.clerkId),
+      });
+      if (existing) {
+        if (existing.email !== input.email || existing.name !== input.name) {
+          const [updated] = await db
+            .update(users)
+            .set({
+              email: input.email,
+              name: input.name ?? existing.name,
+              updatedAt: new Date(),
+            })
+            .where(eq(users.id, existing.id))
+            .returning();
+          return updated;
+        }
+        return existing;
+      }
+      const [created] = await db
+        .insert(users)
+        .values({
+          id: newId("usr"),
+          clerkId: input.clerkId,
           email: input.email,
-          name: input.name ?? existing.name,
-          updatedAt: new Date(),
+          name: input.name ?? null,
         })
-        .where(eq(users.id, existing.id))
         .returning();
-      return updated;
-    }
-    return existing;
-  }
-  const [created] = await db
-    .insert(users)
-    .values({
-      id: newId("usr"),
-      clerkId: input.clerkId,
-      email: input.email,
-      name: input.name ?? null,
-    })
-    .returning();
-  return created;
+      return created;
+    },
+    () => demoStore.upsertUser(input),
+  );
 }
 
 export async function getUserById(id: string) {
@@ -130,56 +196,67 @@ export async function updateUserModeration(
 }
 
 export async function listLinksForUser(userId: string) {
-  if (shouldUseDemoStore()) {
-    return demoStore
-      .getLinksByUser(userId)
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-  }
-  return getDb().query.links.findMany({
-    where: eq(links.userId, userId),
-    orderBy: [desc(links.createdAt)],
-  });
+  return dbTry(
+    () =>
+      getDb().query.links.findMany({
+        where: eq(links.userId, userId),
+        orderBy: [desc(links.createdAt)],
+      }),
+    () =>
+      demoStore
+        .getLinksByUser(userId)
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()),
+  );
 }
 
 export async function listAllLinks() {
-  if (shouldUseDemoStore()) {
-    return demoStore.getLinks().map((l) => ({
-      ...l,
-      ownerEmail: demoStore.getUserById(l.userId)?.email ?? "unknown",
-    }));
-  }
-  return getDb()
-    .select({
-      id: links.id,
-      userId: links.userId,
-      type: links.type,
-      token: links.token,
-      title: links.title,
-      clientEmail: links.clientEmail,
-      status: links.status,
-      templateKey: links.templateKey,
-      createdAt: links.createdAt,
-      updatedAt: links.updatedAt,
-      closedAt: links.closedAt,
-      ownerEmail: users.email,
-    })
-    .from(links)
-    .innerJoin(users, eq(users.id, links.userId))
-    .orderBy(desc(links.createdAt));
+  return dbTry(
+    () =>
+      getDb()
+        .select({
+          id: links.id,
+          userId: links.userId,
+          type: links.type,
+          token: links.token,
+          title: links.title,
+          clientEmail: links.clientEmail,
+          status: links.status,
+          templateKey: links.templateKey,
+          createdAt: links.createdAt,
+          updatedAt: links.updatedAt,
+          closedAt: links.closedAt,
+          ownerEmail: users.email,
+        })
+        .from(links)
+        .innerJoin(users, eq(users.id, links.userId))
+        .orderBy(desc(links.createdAt)),
+    () =>
+      demoStore.getLinks().map((l) => ({
+        ...l,
+        ownerEmail: demoStore.getUserById(l.userId)?.email ?? "unknown",
+      })),
+  );
 }
 
 export async function getLinkById(id: string) {
-  if (shouldUseDemoStore()) return demoStore.getLinkById(id) ?? null;
+  if (demoForLink(id)) return demoStore.getLinkById(id) ?? null;
   return (
     (await getDb().query.links.findFirst({ where: eq(links.id, id) })) ?? null
   );
 }
 
 export async function getLinkByToken(token: string) {
-  if (shouldUseDemoStore()) return demoStore.getLinkByToken(token) ?? null;
-  return (
-    (await getDb().query.links.findFirst({ where: eq(links.token, token) })) ??
-    null
+  // /demo checklist + invoice must resolve without Neon, even when Clerk and
+  // DATABASE_URL are configured (live mode). Schema may not be pushed yet.
+  if (isSeededDemoToken(token)) {
+    return demoStore.getLinkByToken(token) ?? null;
+  }
+  return dbTry(
+    async () =>
+      (await getDb().query.links.findFirst({
+        where: eq(links.token, token),
+      })) ?? null,
+    () => demoStore.getLinkByToken(token) ?? null,
   );
 }
 
@@ -383,7 +460,7 @@ export async function getChecklistBundle(token: string) {
   const link = await getLinkByToken(token);
   if (!link || link.type !== "checklist") return null;
 
-  if (shouldUseDemoStore()) {
+  if (demoForToken(token) || demoForLink(link.id)) {
     return {
       link,
       items: demoStore.getItemsForLink(link.id),
@@ -409,7 +486,7 @@ export async function updateChecklistItem(
   linkId: string,
   patch: { done?: boolean; answerText?: string | null },
 ) {
-  if (shouldUseDemoStore()) {
+  if (demoForLink(linkId)) {
     const item = demoStore.updateItem(itemId, patch);
     await syncChecklistCompletion(linkId);
     return item;
@@ -448,7 +525,7 @@ export async function toggleChecklistItem(
 }
 
 async function syncChecklistCompletion(linkId: string) {
-  if (shouldUseDemoStore()) {
+  if (demoForLink(linkId)) {
     const items = demoStore.getItemsForLink(linkId);
     if (items.length && items.every((i) => i.done)) {
       demoStore.updateLinkStatus(linkId, "completed");
@@ -481,7 +558,7 @@ export async function addFileRecord(input: {
   sizeBytes: number;
   storageKey: string;
 }) {
-  if (shouldUseDemoStore()) {
+  if (demoForLink(input.linkId)) {
     return demoStore.addFile({
       linkId: input.linkId,
       checklistItemId: input.checklistItemId ?? null,
@@ -515,7 +592,7 @@ export async function getInvoiceBundle(token: string) {
   const link = await getLinkByToken(token);
   if (!link || link.type !== "invoice") return null;
 
-  if (shouldUseDemoStore()) {
+  if (demoForToken(token) || demoForLink(link.id)) {
     const invoice = demoStore.getInvoiceByLinkId(link.id) ?? null;
     return {
       link,
@@ -584,7 +661,7 @@ export async function markInvoicePaid(
   paymentIntentId?: string | null,
   manual = false,
 ) {
-  if (shouldUseDemoStore()) {
+  if (demoForLink(linkId)) {
     return demoStore.markInvoicePaid(linkId, {
       paymentIntentId,
       manual,
@@ -608,7 +685,7 @@ export async function markInvoicePaid(
 }
 
 export async function setCheckoutSession(linkId: string, sessionId: string) {
-  if (shouldUseDemoStore()) return demoStore.setCheckoutSession(linkId, sessionId);
+  if (demoForLink(linkId)) return demoStore.setCheckoutSession(linkId, sessionId);
   const [inv] = await getDb()
     .update(invoices)
     .set({
