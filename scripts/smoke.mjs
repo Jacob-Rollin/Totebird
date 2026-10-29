@@ -41,6 +41,7 @@ const paths = [
 
 /** Routes that previously 500'd when Clerk + DATABASE_URL were set. */
 const mustNotAppError = new Set([
+  "/",
   "/c/demo-checklist",
   "/i/demo-invoice",
   "/i/demo-invoice/print",

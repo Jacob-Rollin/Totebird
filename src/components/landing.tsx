@@ -1,16 +1,14 @@
 import Link from "next/link";
 import { TotebirdLogo } from "@/components/logo";
+import { SessionLink } from "@/components/session-link";
 
-export type LandingCtaHrefs = {
-  /** Header Sign in — /sign-in when guest, /app when signed in. */
-  signInHref: string;
-  /** Start free (header, hero, Free tier, final CTA) — /sign-up or /app. */
-  startFreeHref: string;
-  /** Solo pricing CTA — /sign-up or /app/billing. */
-  startSoloHref: string;
-  /** Studio pricing CTA — /sign-up or /app/billing. */
-  startStudioHref: string;
-};
+/** Guest defaults — signed-in swaps happen client-side via SessionLink. */
+const CTA = {
+  signIn: { guest: "/sign-in", signedIn: "/app" },
+  startFree: { guest: "/sign-up", signedIn: "/app" },
+  startSolo: { guest: "/sign-up", signedIn: "/app/billing" },
+  startStudio: { guest: "/sign-up", signedIn: "/app/billing" },
+} as const;
 
 /** Static product preview for the hero media plane — not interactive. */
 function HeroProductMock() {
@@ -97,11 +95,11 @@ function HeroProductMock() {
 }
 
 export function LandingPage({
-  signInHref,
-  startFreeHref,
-  startSoloHref,
-  startStudioHref,
-}: LandingCtaHrefs) {
+  clerkEnabled = false,
+}: {
+  /** When true, CTAs may swap to /app after Clerk hydrates. */
+  clerkEnabled?: boolean;
+}) {
   return (
     <div className="min-h-screen text-[color:var(--tb-ink)]">
       <header className="sticky top-0 z-40 border-b border-[color:var(--tb-line)]/70 bg-[color:var(--tb-mist)]/85 backdrop-blur-md">
@@ -122,12 +120,22 @@ export function LandingPage({
             </a>
           </nav>
           <div className="flex items-center gap-2">
-            <Link href={signInHref} className="tb-btn tb-btn-ghost hidden sm:inline-flex text-sm">
+            <SessionLink
+              clerkEnabled={clerkEnabled}
+              whenGuest={CTA.signIn.guest}
+              whenSignedIn={CTA.signIn.signedIn}
+              className="tb-btn tb-btn-ghost hidden sm:inline-flex text-sm"
+            >
               Sign in
-            </Link>
-            <Link href={startFreeHref} className="tb-btn tb-btn-primary text-sm px-4 py-2">
+            </SessionLink>
+            <SessionLink
+              clerkEnabled={clerkEnabled}
+              whenGuest={CTA.startFree.guest}
+              whenSignedIn={CTA.startFree.signedIn}
+              className="tb-btn tb-btn-primary text-sm px-4 py-2"
+            >
               Start free
-            </Link>
+            </SessionLink>
           </div>
         </div>
       </header>
@@ -146,9 +154,14 @@ export function LandingPage({
                 drop files or pay — no accounts, no chase.
               </p>
               <div className="tb-rise-delay-2 mt-8 flex flex-wrap items-center gap-3">
-                <Link href={startFreeHref} className="tb-btn tb-btn-primary">
+                <SessionLink
+                  clerkEnabled={clerkEnabled}
+                  whenGuest={CTA.startFree.guest}
+                  whenSignedIn={CTA.startFree.signedIn}
+                  className="tb-btn tb-btn-primary"
+                >
                   Start free
-                </Link>
+                </SessionLink>
                 <Link href="/demo" className="tb-btn tb-btn-secondary">
                   Try demo
                 </Link>
@@ -305,7 +318,8 @@ export function LandingPage({
                     "“Powered by Totebird”",
                   ],
                   cta: "Start free",
-                  href: startFreeHref,
+                  whenGuest: CTA.startFree.guest,
+                  whenSignedIn: CTA.startFree.signedIn,
                   highlight: false,
                 },
                 {
@@ -320,7 +334,8 @@ export function LandingPage({
                     "No invoice platform fee",
                   ],
                   cta: "Start Solo",
-                  href: startSoloHref,
+                  whenGuest: CTA.startSolo.guest,
+                  whenSignedIn: CTA.startSolo.signedIn,
                   highlight: true,
                 },
                 {
@@ -334,7 +349,8 @@ export function LandingPage({
                     "Seats coming later",
                   ],
                   cta: "Start Studio",
-                  href: startStudioHref,
+                  whenGuest: CTA.startStudio.guest,
+                  whenSignedIn: CTA.startStudio.signedIn,
                   highlight: false,
                 },
               ].map((tier) => (
@@ -365,14 +381,16 @@ export function LandingPage({
                       <li key={f}>· {f}</li>
                     ))}
                   </ul>
-                  <Link
-                    href={tier.href}
+                  <SessionLink
+                    clerkEnabled={clerkEnabled}
+                    whenGuest={tier.whenGuest}
+                    whenSignedIn={tier.whenSignedIn}
                     className={`tb-btn mt-8 w-full ${
                       tier.highlight ? "tb-btn-primary" : "tb-btn-secondary"
                     }`}
                   >
                     {tier.cta}
-                  </Link>
+                  </SessionLink>
                 </article>
               ))}
             </div>
@@ -459,9 +477,14 @@ export function LandingPage({
               Create a checklist or invoice link in under a minute.
             </p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-              <Link href={startFreeHref} className="tb-btn tb-btn-primary">
+              <SessionLink
+                clerkEnabled={clerkEnabled}
+                whenGuest={CTA.startFree.guest}
+                whenSignedIn={CTA.startFree.signedIn}
+                className="tb-btn tb-btn-primary"
+              >
                 Start free
-              </Link>
+              </SessionLink>
               <Link href="/demo" className="tb-btn tb-btn-secondary">
                 Try demo
               </Link>
