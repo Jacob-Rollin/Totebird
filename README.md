@@ -86,10 +86,17 @@ Create Stripe Products/Prices for Solo ($19 / $190) and Studio ($39 / $390), pas
 
 ### Neon
 
+Linked via [`neon.ts`](./neon.ts) + `.neon` (gitignored) to project `shiny-rice-23336236` / branch `production`.
+
 ```bash
-npm run db:push
-# migrations in src/db/migrations/ (0000_init + 0001_enrich)
+neon login                 # browser once (or NEON_API_KEY)
+neon env pull              # writes DATABASE_URL into .env.local
+neon deploy                # applies neon.ts (Postgres-only; no Auth/Object Storage)
+npm run db:push            # Drizzle schema → Neon
+npm run prove:db           # insert/select/delete smoke
 ```
+
+Migrations also in `src/db/migrations/` (`0000_init` + `0001_enrich`). Driver: `@neondatabase/serverless` + Drizzle HTTP (Netlify/serverless-friendly).
 
 ### Clerk
 
