@@ -1,9 +1,16 @@
 import Link from "next/link";
 import { TotebirdLogo } from "@/components/logo";
 
-/** Auth CTAs always target Clerk routes — never silent /app or /demo fallback. */
-const SIGN_UP_HREF = "/sign-up";
-const SIGN_IN_HREF = "/sign-in";
+export type LandingCtaHrefs = {
+  /** Header Sign in — /sign-in when guest, /app when signed in. */
+  signInHref: string;
+  /** Start free (header, hero, Free tier, final CTA) — /sign-up or /app. */
+  startFreeHref: string;
+  /** Solo pricing CTA — /sign-up or /app/billing. */
+  startSoloHref: string;
+  /** Studio pricing CTA — /sign-up or /app/billing. */
+  startStudioHref: string;
+};
 
 /** Static product preview for the hero media plane — not interactive. */
 function HeroProductMock() {
@@ -89,7 +96,12 @@ function HeroProductMock() {
   );
 }
 
-export function LandingPage() {
+export function LandingPage({
+  signInHref,
+  startFreeHref,
+  startSoloHref,
+  startStudioHref,
+}: LandingCtaHrefs) {
   return (
     <div className="min-h-screen text-[color:var(--tb-ink)]">
       <header className="sticky top-0 z-40 border-b border-[color:var(--tb-line)]/70 bg-[color:var(--tb-mist)]/85 backdrop-blur-md">
@@ -110,10 +122,10 @@ export function LandingPage() {
             </a>
           </nav>
           <div className="flex items-center gap-2">
-            <Link href={SIGN_IN_HREF} className="tb-btn tb-btn-ghost hidden sm:inline-flex text-sm">
+            <Link href={signInHref} className="tb-btn tb-btn-ghost hidden sm:inline-flex text-sm">
               Sign in
             </Link>
-            <Link href={SIGN_UP_HREF} className="tb-btn tb-btn-primary text-sm px-4 py-2">
+            <Link href={startFreeHref} className="tb-btn tb-btn-primary text-sm px-4 py-2">
               Start free
             </Link>
           </div>
@@ -134,7 +146,7 @@ export function LandingPage() {
                 drop files or pay — no accounts, no chase.
               </p>
               <div className="tb-rise-delay-2 mt-8 flex flex-wrap items-center gap-3">
-                <Link href={SIGN_UP_HREF} className="tb-btn tb-btn-primary">
+                <Link href={startFreeHref} className="tb-btn tb-btn-primary">
                   Start free
                 </Link>
                 <Link href="/demo" className="tb-btn tb-btn-secondary">
@@ -293,7 +305,7 @@ export function LandingPage() {
                     "“Powered by Totebird”",
                   ],
                   cta: "Start free",
-                  href: SIGN_UP_HREF,
+                  href: startFreeHref,
                   highlight: false,
                 },
                 {
@@ -308,7 +320,7 @@ export function LandingPage() {
                     "No invoice platform fee",
                   ],
                   cta: "Start Solo",
-                  href: SIGN_UP_HREF,
+                  href: startSoloHref,
                   highlight: true,
                 },
                 {
@@ -322,7 +334,7 @@ export function LandingPage() {
                     "Seats coming later",
                   ],
                   cta: "Start Studio",
-                  href: SIGN_UP_HREF,
+                  href: startStudioHref,
                   highlight: false,
                 },
               ].map((tier) => (
@@ -447,7 +459,7 @@ export function LandingPage() {
               Create a checklist or invoice link in under a minute.
             </p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-              <Link href={SIGN_UP_HREF} className="tb-btn tb-btn-primary">
+              <Link href={startFreeHref} className="tb-btn tb-btn-primary">
                 Start free
               </Link>
               <Link href="/demo" className="tb-btn tb-btn-secondary">
@@ -459,60 +471,60 @@ export function LandingPage() {
       </main>
 
       <footer className="border-t border-[color:var(--tb-line)] bg-white">
-        <div className="tb-shell flex flex-col gap-8 py-12 md:flex-row md:justify-between">
-          <div>
-            <TotebirdLogo size="sm" />
-            <p className="mt-3 max-w-xs text-sm text-[color:var(--tb-slate-soft)]">
+        <div className="tb-shell grid gap-10 py-12 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="sm:col-span-2 lg:col-span-1">
+            <p className="text-sm font-semibold text-[color:var(--tb-ink)]">
+              Totebird
+            </p>
+            <p className="mt-3 max-w-xs text-sm leading-relaxed text-[color:var(--tb-slate-soft)]">
               Passwordless client links for freelancers. One link out. Everything
               flies home.
             </p>
           </div>
-          <div className="grid grid-cols-2 gap-10 text-sm sm:grid-cols-3">
-            <div>
-              <p className="font-semibold text-[color:var(--tb-ink)]">Product</p>
-              <ul className="mt-3 space-y-2 text-[color:var(--tb-slate-soft)]">
-                <li>
-                  <a href="#how">How it works</a>
-                </li>
-                <li>
-                  <a href="#pricing">Pricing</a>
-                </li>
-                <li>
-                  <Link href="/demo">Demo</Link>
-                </li>
-                <li>
-                  <Link href="/app">Dashboard</Link>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <p className="font-semibold text-[color:var(--tb-ink)]">Company</p>
-              <ul className="mt-3 space-y-2 text-[color:var(--tb-slate-soft)]">
-                <li>
-                  <a href="mailto:hello@totebird.com">hello@totebird.com</a>
-                </li>
-                <li>
-                  <a
-                    href="https://twitter.com/totebird"
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Twitter / X
-                  </a>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <p className="font-semibold text-[color:var(--tb-ink)]">Legal</p>
-              <ul className="mt-3 space-y-2 text-[color:var(--tb-slate-soft)]">
-                <li>
-                  <Link href="/privacy">Privacy</Link>
-                </li>
-                <li>
-                  <Link href="/terms">Terms</Link>
-                </li>
-              </ul>
-            </div>
+          <div className="text-sm">
+            <p className="font-semibold text-[color:var(--tb-ink)]">Product</p>
+            <ul className="mt-3 space-y-2 text-[color:var(--tb-slate-soft)]">
+              <li>
+                <a href="#how">How it works</a>
+              </li>
+              <li>
+                <a href="#pricing">Pricing</a>
+              </li>
+              <li>
+                <Link href="/demo">Demo</Link>
+              </li>
+              <li>
+                <Link href="/app">Dashboard</Link>
+              </li>
+            </ul>
+          </div>
+          <div className="text-sm">
+            <p className="font-semibold text-[color:var(--tb-ink)]">Company</p>
+            <ul className="mt-3 space-y-2 text-[color:var(--tb-slate-soft)]">
+              <li>
+                <a href="mailto:hello@totebird.com">hello@totebird.com</a>
+              </li>
+              <li>
+                <a
+                  href="https://twitter.com/totebird"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Twitter / X
+                </a>
+              </li>
+            </ul>
+          </div>
+          <div className="text-sm">
+            <p className="font-semibold text-[color:var(--tb-ink)]">Legal</p>
+            <ul className="mt-3 space-y-2 text-[color:var(--tb-slate-soft)]">
+              <li>
+                <Link href="/privacy">Privacy</Link>
+              </li>
+              <li>
+                <Link href="/terms">Terms</Link>
+              </li>
+            </ul>
           </div>
         </div>
         <div className="border-t border-[color:var(--tb-line)]">
