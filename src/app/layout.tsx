@@ -1,22 +1,10 @@
 import type { Metadata } from "next";
-import { Fraunces, Source_Sans_3 } from "next/font/google";
 import { Providers } from "@/components/providers";
 import { DemoBanner } from "@/components/demo-banner";
+import { body, display } from "@/fonts/fonts";
 import { hasClerkPublishable } from "@/lib/env-public";
 import { safeMetadataBase } from "@/lib/metadata-base";
 import "./globals.css";
-
-const display = Fraunces({
-  variable: "--font-display",
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
-});
-
-const body = Source_Sans_3({
-  variable: "--font-body",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-});
 
 export const metadata: Metadata = {
   metadataBase: safeMetadataBase(),
