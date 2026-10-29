@@ -1,0 +1,143 @@
+#!/usr/bin/env node
+/**
+ * Env checklist — prints SET / MISSING for known keys (never prints values).
+ * Mirrors src/lib/env.ts flags. Exit 0 always (informational checklist).
+ *
+ * Usage: npm run prove:env
+ * Loads .env.local then .env (same as prove-db).
+ */
+import { config } from "dotenv";
+
+config({ path: ".env.local" });
+config({ path: ".env" });
+
+function truthy(v) {
+  return v === "1" || v === "true" || v === "yes";
+}
+
+function present(name) {
+  const v = process.env[name];
+  return Boolean(v && String(v).trim());
+}
+
+function mark(name) {
+  return present(name) ? "SET    " : "MISSING";
+}
+
+const groups = [
+  {
+    title: "App",
+    keys: ["NEXT_PUBLIC_APP_URL", "ADMIN_EMAIL", "ADMIN_USER_IDS", "DEMO_MODE"],
+  },
+  {
+    title: "Neon (Postgres)",
+    keys: ["DATABASE_URL", "DATABASE_URL_UNPOOLED"],
+    note: "Production: set on Netlify. Local db:push / prove:db only when you run on a laptop later.",
+  },
+  {
+    title: "Clerk",
+    keys: [
+      "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
+      "CLERK_SECRET_KEY",
+      "NEXT_PUBLIC_CLERK_SIGN_IN_URL",
+      "NEXT_PUBLIC_CLERK_SIGN_UP_URL",
+      "NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL",
+      "NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL",
+      "CLERK_WEBHOOK_SECRET",
+    ],
+    needBoth: ["NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", "CLERK_SECRET_KEY"],
+  },
+  {
+    title: "Cloudflare R2",
+    keys: [
+      "R2_ACCOUNT_ID",
+      "R2_ACCESS_KEY_ID",
+      "R2_SECRET_ACCESS_KEY",
+      "R2_BUCKET_NAME",
+      "R2_PUBLIC_URL",
+      "R2_MAX_UPLOAD_BYTES",
+    ],
+    needAll: [
+      "R2_ACCOUNT_ID",
+      "R2_ACCESS_KEY_ID",
+      "R2_SECRET_ACCESS_KEY",
+      "R2_BUCKET_NAME",
+    ],
+  },
+  {
+    title: "Resend",
+    keys: ["RESEND_API_KEY", "RESEND_FROM_EMAIL"],
+  },
+  {
+    title: "Stripe",
+    keys: [
+      "STRIPE_SECRET_KEY",
+      "STRIPE_WEBHOOK_SECRET",
+      "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY",
+      "STRIPE_PRICE_SOLO_MONTHLY",
+      "STRIPE_PRICE_SOLO_YEARLY",
+      "STRIPE_PRICE_STUDIO_MONTHLY",
+      "STRIPE_PRICE_STUDIO_YEARLY",
+      "STRIPE_PLATFORM_FEE_BPS",
+    ],
+  },
+  {
+    title: "Cron / Netlify reminders",
+    keys: ["CRON_SECRET"],
+    note: "Leave unset for local smoke; set on Netlify production.",
+  },
+];
+
+console.log("Totebird env checklist (values never printed)\n");
+
+for (const g of groups) {
+  console.log(`## ${g.title}`);
+  if (g.note) console.log(`   ${g.note}`);
+  for (const key of g.keys) {
+    console.log(`  ${mark(key)}  ${key}`);
+  }
+  if (g.needBoth) {
+    const [a, b] = g.needBoth;
+    const pa = present(a);
+    const pb = present(b);
+    if (pa !== pb) {
+      console.log(`   ⚠ partial: need BOTH ${a} and ${b}`);
+    }
+  }
+  if (g.needAll) {
+    const states = g.needAll.map(present);
+    const some = states.some(Boolean);
+    const all = states.every(Boolean);
+    if (some && !all) {
+      console.log(`   ⚠ partial R2 core: need ${g.needAll.join(", ")}`);
+    }
+  }
+  console.log("");
+}
+
+const hasDatabase = present("DATABASE_URL");
+const hasClerk =
+  present("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY") && present("CLERK_SECRET_KEY");
+const hasR2 =
+  present("R2_ACCOUNT_ID") &&
+  present("R2_ACCESS_KEY_ID") &&
+  present("R2_SECRET_ACCESS_KEY") &&
+  present("R2_BUCKET_NAME");
+const hasResend = present("RESEND_API_KEY");
+const hasStripe = present("STRIPE_SECRET_KEY");
+const demoMode = truthy(process.env.DEMO_MODE) || !hasDatabase || !hasClerk;
+
+console.log("## Derived (src/lib/env.ts)");
+console.log(`  demoMode     ${demoMode}`);
+console.log(`  hasDatabase  ${hasDatabase}`);
+console.log(`  hasClerk     ${hasClerk}`);
+console.log(`  hasR2        ${hasR2}`);
+console.log(`  hasResend    ${hasResend}`);
+console.log(`  hasStripe    ${hasStripe}`);
+console.log("");
+console.log(
+  demoMode
+    ? "App will run in DEMO MODE (in-memory) until Neon + Clerk are both set."
+    : "Neon + Clerk present — live mode (unless DEMO_MODE forces demo).",
+);
+console.log("Done. Exit 0 (checklist only).");

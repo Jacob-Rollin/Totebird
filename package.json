@@ -12,6 +12,7 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "smoke": "node scripts/smoke.mjs",
+    "prove:env": "node scripts/prove-env.mjs",
     "prove:db": "node scripts/prove-db.mjs"
   },
   "dependencies": {

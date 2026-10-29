@@ -1,14 +1,11 @@
 import { NextResponse } from "next/server";
 import type { NextMiddleware } from "next/server";
-
-const hasClerk = Boolean(
-  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY && process.env.CLERK_SECRET_KEY,
-);
-const forceDemo = process.env.DEMO_MODE === "true";
+import { hasClerk, isDemoMode } from "@/lib/env";
 
 let middleware: NextMiddleware;
 
-if (!hasClerk || forceDemo) {
+// Must match layout.tsx: skip Clerk when demo (missing DB and/or Clerk, or DEMO_MODE).
+if (isDemoMode() || !hasClerk()) {
   middleware = () => NextResponse.next();
 } else {
   // eslint-disable-next-line @typescript-eslint/no-require-imports

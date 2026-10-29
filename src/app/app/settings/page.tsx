@@ -67,8 +67,8 @@ export default async function SettingsPage() {
             title="Neon database"
             hint={
               status.database
-                ? "DATABASE_URL is set — data can persist."
-                : "Add DATABASE_URL, then run npm run db:push."
+                ? "DATABASE_URL is set — data can persist. If tables are missing at runtime, run npm run db:push once from a laptop with the same URL (not on Netlify)."
+                : "Add DATABASE_URL in Netlify env (or .env.local). Schema push (npm run db:push) is a one-time local step later — not run on Netlify."
             }
           />
           <Row
