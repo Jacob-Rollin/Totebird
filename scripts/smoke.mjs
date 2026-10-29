@@ -28,6 +28,8 @@ const paths = [
   "/i/demo-invoice/print",
   "/app",
   "/app/billing",
+  "/app/billing?upgraded=1",
+  "/app/billing?upgraded=1&session_id=cs_test_smoke",
   "/app/settings",
   "/app/links/new",
   "/api/cron/reminders",
@@ -46,6 +48,9 @@ const mustNotAppError = new Set([
   "/i/demo-invoice",
   "/i/demo-invoice/print",
   "/app",
+  "/app/billing",
+  "/app/billing?upgraded=1",
+  "/app/billing?upgraded=1&session_id=cs_test_smoke",
   "/demo",
 ]);
 

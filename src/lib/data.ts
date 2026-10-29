@@ -152,28 +152,45 @@ export async function getUserByStripeCustomerId(customerId: string) {
       demoStore.getUsers().find((u) => u.stripeCustomerId === customerId) ?? null
     );
   }
-  return (
-    (await getDb().query.users.findFirst({
-      where: eq(users.stripeCustomerId, customerId),
-    })) ?? null
-  );
+  try {
+    return (
+      (await getDb().query.users.findFirst({
+        where: eq(users.stripeCustomerId, customerId),
+      })) ?? null
+    );
+  } catch (err) {
+    noteDbFailure(err);
+    return (
+      demoStore.getUsers().find((u) => u.stripeCustomerId === customerId) ?? null
+    );
+  }
 }
 
 export async function getUserByIdBilling(id: string) {
   if (!id) return null;
   if (!isLiveBillingDb()) return demoStore.getUserById(id) ?? null;
-  return (
-    (await getDb().query.users.findFirst({ where: eq(users.id, id) })) ?? null
-  );
+  try {
+    return (
+      (await getDb().query.users.findFirst({ where: eq(users.id, id) })) ?? null
+    );
+  } catch (err) {
+    noteDbFailure(err);
+    return demoStore.getUserById(id) ?? null;
+  }
 }
 
 export async function getUserByEmailBilling(email: string) {
   if (!email) return null;
   if (!isLiveBillingDb()) return demoStore.getUserByEmail(email) ?? null;
-  return (
-    (await getDb().query.users.findFirst({ where: eq(users.email, email) })) ??
-    null
-  );
+  try {
+    return (
+      (await getDb().query.users.findFirst({ where: eq(users.email, email) })) ??
+      null
+    );
+  } catch (err) {
+    noteDbFailure(err);
+    return demoStore.getUserByEmail(email) ?? null;
+  }
 }
 
 export type UserBillingPatch = Partial<
@@ -342,33 +359,40 @@ export async function getLinkByToken(token: string) {
 }
 
 export async function countActiveLinks(userId: string) {
-  if (shouldUseDemoStore()) {
-    return demoStore
-      .getLinksByUser(userId)
-      .filter((l) => l.status === "active").length;
-  }
-  const [row] = await getDb()
-    .select({ n: count() })
-    .from(links)
-    .where(and(eq(links.userId, userId), eq(links.status, "active")));
-  return Number(row?.n ?? 0);
+  return dbTry(
+    async () => {
+      const [row] = await getDb()
+        .select({ n: count() })
+        .from(links)
+        .where(and(eq(links.userId, userId), eq(links.status, "active")));
+      return Number(row?.n ?? 0);
+    },
+    () =>
+      demoStore
+        .getLinksByUser(userId)
+        .filter((l) => l.status === "active").length,
+  );
 }
 
 export async function storageUsedByUser(userId: string) {
-  if (shouldUseDemoStore()) return demoStore.storageUsedByUser(userId);
-  const userLinks = await getDb()
-    .select({ id: links.id })
-    .from(links)
-    .where(eq(links.userId, userId));
-  if (!userLinks.length) return 0;
-  const ids = userLinks.map((l) => l.id);
-  const [row] = await getDb()
-    .select({
-      n: sql<number>`coalesce(sum(${files.sizeBytes}), 0)`,
-    })
-    .from(files)
-    .where(inArray(files.linkId, ids));
-  return Number(row?.n ?? 0);
+  return dbTry(
+    async () => {
+      const userLinks = await getDb()
+        .select({ id: links.id })
+        .from(links)
+        .where(eq(links.userId, userId));
+      if (!userLinks.length) return 0;
+      const ids = userLinks.map((l) => l.id);
+      const [row] = await getDb()
+        .select({
+          n: sql<number>`coalesce(sum(${files.sizeBytes}), 0)`,
+        })
+        .from(files)
+        .where(inArray(files.linkId, ids));
+      return Number(row?.n ?? 0);
+    },
+    () => demoStore.storageUsedByUser(userId),
+  );
 }
 
 export async function createChecklistLink(input: {

@@ -2,6 +2,7 @@
 
 import { ClerkProvider } from "@clerk/nextjs";
 import type { ReactNode } from "react";
+import { SoftBoundary } from "@/components/soft-boundary";
 
 export function Providers({
   children,
@@ -11,5 +12,9 @@ export function Providers({
   clerkEnabled: boolean;
 }) {
   if (!clerkEnabled) return <>{children}</>;
-  return <ClerkProvider>{children}</ClerkProvider>;
+  return (
+    <SoftBoundary fallback={<>{children}</>}>
+      <ClerkProvider>{children}</ClerkProvider>
+    </SoftBoundary>
+  );
 }
