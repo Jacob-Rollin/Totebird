@@ -1,11 +1,20 @@
 import { NextResponse } from "next/server";
 import type { NextMiddleware } from "next/server";
-import { hasClerk, isDemoMode } from "@/lib/env";
+import {
+  hasClerkPublishable,
+  isDemoModeForced,
+} from "@/lib/env-public";
 
 let middleware: NextMiddleware;
 
-// Must match layout.tsx: skip Clerk when demo (missing DB and/or Clerk, or DEMO_MODE).
-if (isDemoMode() || !hasClerk()) {
+/**
+ * Edge-safe gating: never import `@/lib/env` (server-only secrets module).
+ * - DEMO_MODE forced → passthrough (matches server isDemoMode()).
+ * - No publishable key → passthrough (Clerk middleware cannot run).
+ * Full DB/secret demo detection stays on the server; layout enables ClerkProvider
+ * via hasClerkPublishable() so /sign-in works before DATABASE_URL exists.
+ */
+if (isDemoModeForced() || !hasClerkPublishable()) {
   middleware = () => NextResponse.next();
 } else {
   // eslint-disable-next-line @typescript-eslint/no-require-imports

@@ -1,3 +1,13 @@
+import "server-only";
+
+import {
+  appUrl,
+  hasClerkPublishable,
+  isDemoModeForced,
+} from "@/lib/env-public";
+
+export { appUrl, hasClerkPublishable, isDemoModeForced };
+
 function truthy(v: string | undefined) {
   return v === "1" || v === "true" || v === "yes";
 }
@@ -6,10 +16,10 @@ export function hasDatabase() {
   return Boolean(process.env.DATABASE_URL);
 }
 
+/** Full Clerk pair (publishable + secret). Server-only — never import from client. */
 export function hasClerk() {
   return Boolean(
-    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY &&
-      process.env.CLERK_SECRET_KEY,
+    hasClerkPublishable() && process.env.CLERK_SECRET_KEY,
   );
 }
 
@@ -48,15 +58,8 @@ export function platformFeeBps() {
 }
 
 export function isDemoMode() {
-  if (truthy(process.env.DEMO_MODE)) return true;
+  if (isDemoModeForced()) return true;
   return !hasDatabase() || !hasClerk();
-}
-
-export function appUrl() {
-  return (
-    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ||
-    "http://localhost:3000"
-  );
 }
 
 export function adminEmails(): string[] {

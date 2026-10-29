@@ -12,6 +12,12 @@
   # @netlify/plugin-nextjs owns the publish output — leave as .next
   publish = ".next"
 
+# Keep secrets scanning ON (do not set SECRETS_SCAN_ENABLED=false).
+# Omit only non-public server/edge bundles where Next/Netlify may embed runtime
+# secret values for functions. Still scan repo + .next/static (client) for leaks.
+[build.environment]
+  SECRETS_SCAN_OMIT_PATHS = ".netlify/,.next/server/"
+
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 

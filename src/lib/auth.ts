@@ -7,7 +7,7 @@ export type SessionUser = User & { isAdmin: boolean };
 async function demoSession(): Promise<SessionUser> {
   const user = await ensureUser({
     clerkId: "user_demo",
-    email: process.env.ADMIN_EMAIL?.split(",")[0]?.trim() || "demo@totebird.local",
+    email: "demo@totebird.local",
     name: "Demo Freelancer",
   });
   return { ...user, isAdmin: true };

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Fraunces, Source_Sans_3 } from "next/font/google";
 import { Providers } from "@/components/providers";
 import { DemoBanner } from "@/components/demo-banner";
-import { hasClerk } from "@/lib/env";
+import { hasClerkPublishable } from "@/lib/env-public";
 import "./globals.css";
 
 const display = Fraunces({
@@ -55,9 +55,9 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Enable Clerk whenever keys exist so /sign-in and /sign-up work even if
-  // the data layer is still in demo mode (e.g. missing DATABASE_URL).
-  const clerkEnabled = hasClerk();
+  // Publishable key only — never touch CLERK_SECRET_KEY in the root layout graph.
+  // /sign-in and /sign-up work even if DATABASE_URL is still missing.
+  const clerkEnabled = hasClerkPublishable();
 
   return (
     <html lang="en">
