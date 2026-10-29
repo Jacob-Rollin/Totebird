@@ -2,10 +2,11 @@ import { SignUp } from "@clerk/nextjs";
 import Link from "next/link";
 import { ClerkSetupHint } from "@/components/clerk-setup-hint";
 import { TotebirdLogo } from "@/components/logo";
-import { hasClerk } from "@/lib/env";
+import { hasClerkPublishable } from "@/lib/env-public";
 
 export default function SignUpPage() {
-  if (!hasClerk()) {
+  // Publishable key gates the UI; secret stays server-only (Clerk SDK / API).
+  if (!hasClerkPublishable()) {
     return <ClerkSetupHint intent="sign-up" />;
   }
 

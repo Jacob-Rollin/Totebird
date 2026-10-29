@@ -27,7 +27,8 @@ function store(): Store {
     const demoUser: User = {
       id: "usr_demo",
       clerkId: "user_demo",
-      email: process.env.ADMIN_EMAIL?.split(",")[0]?.trim() || "demo@totebird.local",
+      // Fixed demo identity — never read ADMIN_EMAIL here (SSG / shared graphs).
+      email: "demo@totebird.local",
       name: "Demo Freelancer",
       plan: "free",
       stripeCustomerId: null,
