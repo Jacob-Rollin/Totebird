@@ -15,6 +15,13 @@
       "when": 1730001000000,
       "tag": "0001_enrich",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1730002000000,
+      "tag": "0002_stripe_connect",
+      "breakpoints": true
     }
   ]
 }

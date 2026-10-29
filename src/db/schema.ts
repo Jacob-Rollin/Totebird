@@ -40,6 +40,15 @@ export const users = pgTable(
     name: text("name"),
     plan: planEnum("plan").notNull().default("free"),
     stripeCustomerId: text("stripe_customer_id"),
+    stripeSubscriptionId: text("stripe_subscription_id"),
+    /** Stripe Connect Express account id (acct_…) — Phase 2+ */
+    stripeConnectAccountId: text("stripe_connect_account_id"),
+    stripeConnectChargesEnabled: boolean("stripe_connect_charges_enabled")
+      .notNull()
+      .default(false),
+    stripeConnectDetailsSubmitted: boolean("stripe_connect_details_submitted")
+      .notNull()
+      .default(false),
     disabled: boolean("disabled").notNull().default(false),
     flagged: boolean("flagged").notNull().default(false),
     flagReason: text("flag_reason"),

@@ -43,8 +43,8 @@ In Stripe Dashboard → Developers → Webhooks → Add endpoint:
 https://YOUR-SITE.netlify.app/api/webhooks/stripe
 ```
 
-Events: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`.  
-Paste signing secret → `STRIPE_WEBHOOK_SECRET`.
+Events: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`, plus Connect `account.updated` / `account.application.deauthorized` when using Express. Enable **Listen to events on Connected accounts** once Connect invoices go live.  
+Paste signing secret → `STRIPE_WEBHOOK_SECRET`. Optional: `STRIPE_CONNECT_ENABLED=true` + `STRIPE_PLATFORM_FEE_BPS=100` after Dashboard Connect setup.
 
 ### 4. Scheduled reminders (Netlify)
 
@@ -118,7 +118,7 @@ npm run smoke
 
 ## Environment variables
 
-See [`.env.example`](./.env.example). Create Stripe Products/Prices for Solo ($19 / $190) and Studio ($39 / $390), paste Price IDs, enable **Customer Portal**.
+See [`.env.example`](./.env.example). Create Stripe Products/Prices for Solo ($19 / $190) and Studio ($39 / $390), paste Price IDs, enable **Customer Portal**. Connect Express stays off until `STRIPE_CONNECT_ENABLED=true`.
 
 ### Founder admin
 
@@ -127,7 +127,7 @@ See [`.env.example`](./.env.example). Create Stripe Products/Prices for Solo ($1
 ## Features (keyless-complete)
 
 - **Plan limits** — Free = 3 active links + 250 MB messaging; enforced on create
-- **Billing stubs** — `/app/billing` upgrade Checkout + Customer Portal (needs Stripe + Price IDs); demo plan switch without keys
+- **Billing** — `/app/billing` upgrade Checkout + Customer Portal (needs Stripe + Price IDs); demo plan switch without keys; Connect Express scaffold on Settings
 - **Checklist** — templates, item types, progress %, duplicate / archive
 - **Invoice** — line items, due presets, mark paid manually, print view
 - **Email pack** — reminder / overdue / paid templates (console without Resend)
@@ -151,7 +151,7 @@ npm run db:push            # Drizzle schema → Neon
 npm run prove:db           # insert/select/delete smoke
 ```
 
-Migrations also in `src/db/migrations/` (`0000_init` + `0001_enrich`).
+Migrations also in `src/db/migrations/` (`0000_init` + `0001_enrich` + `0002_stripe_connect`).
 
 ### Clerk
 
@@ -159,7 +159,7 @@ Sign-in/up → `/sign-in`, `/sign-up`; after auth → `/app`.
 
 ### R2 / Resend / Stripe
 
-Follow [`.env.example`](./.env.example) and the Project platform setup guide. Webhook: `POST /api/webhooks/stripe` (`checkout.session.completed`, subscription updated/deleted). Netlify deploy steps are at the top of this README.
+Follow [`.env.example`](./.env.example) and the Project platform setup guide. Webhook: `POST /api/webhooks/stripe` (Billing + Connect `account.*`). Netlify deploy steps are at the top of this README.
 
 ## App routes
 

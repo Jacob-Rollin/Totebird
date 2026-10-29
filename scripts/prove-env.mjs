@@ -78,8 +78,10 @@ const groups = [
       "STRIPE_PRICE_SOLO_YEARLY",
       "STRIPE_PRICE_STUDIO_MONTHLY",
       "STRIPE_PRICE_STUDIO_YEARLY",
+      "STRIPE_CONNECT_ENABLED",
       "STRIPE_PLATFORM_FEE_BPS",
     ],
+    note: "Connect stays off until Dashboard setup + STRIPE_CONNECT_ENABLED=true.",
   },
   {
     title: "Cron / Netlify reminders",
@@ -125,15 +127,18 @@ const hasR2 =
   present("R2_BUCKET_NAME");
 const hasResend = present("RESEND_API_KEY");
 const hasStripe = present("STRIPE_SECRET_KEY");
+const stripeConnect =
+  truthy(process.env.STRIPE_CONNECT_ENABLED) && hasStripe;
 const demoMode = truthy(process.env.DEMO_MODE) || !hasDatabase || !hasClerk;
 
 console.log("## Derived (src/lib/env.ts)");
-console.log(`  demoMode     ${demoMode}`);
-console.log(`  hasDatabase  ${hasDatabase}`);
-console.log(`  hasClerk     ${hasClerk}`);
-console.log(`  hasR2        ${hasR2}`);
-console.log(`  hasResend    ${hasResend}`);
-console.log(`  hasStripe    ${hasStripe}`);
+console.log(`  demoMode       ${demoMode}`);
+console.log(`  hasDatabase    ${hasDatabase}`);
+console.log(`  hasClerk       ${hasClerk}`);
+console.log(`  hasR2          ${hasR2}`);
+console.log(`  hasResend      ${hasResend}`);
+console.log(`  hasStripe      ${hasStripe}`);
+console.log(`  stripeConnect  ${stripeConnect}`);
 console.log("");
 console.log(
   demoMode

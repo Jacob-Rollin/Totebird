@@ -31,6 +31,10 @@ function store(): Store {
       name: "Demo Freelancer",
       plan: "free",
       stripeCustomerId: null,
+      stripeSubscriptionId: null,
+      stripeConnectAccountId: null,
+      stripeConnectChargesEnabled: false,
+      stripeConnectDetailsSubmitted: false,
       disabled: false,
       flagged: false,
       flagReason: null,
@@ -78,6 +82,10 @@ function store(): Store {
           name: "Alex Studio",
           plan: "solo",
           stripeCustomerId: null,
+          stripeSubscriptionId: null,
+          stripeConnectAccountId: null,
+          stripeConnectChargesEnabled: false,
+          stripeConnectDetailsSubmitted: false,
           disabled: false,
           flagged: false,
           flagReason: null,
@@ -243,6 +251,10 @@ export const demoStore = {
       name: input.name ?? null,
       plan: "free",
       stripeCustomerId: null,
+      stripeSubscriptionId: null,
+      stripeConnectAccountId: null,
+      stripeConnectChargesEnabled: false,
+      stripeConnectDetailsSubmitted: false,
       disabled: false,
       flagged: false,
       flagReason: null,
@@ -256,7 +268,18 @@ export const demoStore = {
   updateUser(
     id: string,
     patch: Partial<
-      Pick<User, "disabled" | "flagged" | "flagReason" | "plan" | "stripeCustomerId">
+      Pick<
+        User,
+        | "disabled"
+        | "flagged"
+        | "flagReason"
+        | "plan"
+        | "stripeCustomerId"
+        | "stripeSubscriptionId"
+        | "stripeConnectAccountId"
+        | "stripeConnectChargesEnabled"
+        | "stripeConnectDetailsSubmitted"
+      >
     >,
   ) {
     const u = demoStore.getUserById(id);

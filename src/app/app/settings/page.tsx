@@ -1,8 +1,15 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { ConnectActions } from "@/components/connect-actions";
 import { requireSession } from "@/lib/auth";
-import { integrationStatus, appUrl } from "@/lib/env";
+import { updateUserModeration } from "@/lib/data";
+import {
+  integrationStatus,
+  appUrl,
+  isStripeConnectEnabled,
+} from "@/lib/env";
 import { PLAN_LIMITS } from "@/lib/plans";
+import { connectFeatureStatus, refreshConnectAccount } from "@/lib/stripe-connect";
 
 export const metadata = { title: "Settings" };
 
@@ -35,9 +42,31 @@ function Row({
   );
 }
 
-export default async function SettingsPage() {
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ connect?: string }>;
+}) {
   const session = await requireSession();
   if (!session) redirect("/sign-in");
+  const q = await searchParams;
+
+  // Return/refresh from Stripe Express Account Link
+  if (
+    (q.connect === "return" || q.connect === "refresh") &&
+    isStripeConnectEnabled() &&
+    session.stripeConnectAccountId
+  ) {
+    const live = await refreshConnectAccount(session.stripeConnectAccountId);
+    if (live) {
+      await updateUserModeration(session.id, {
+        stripeConnectChargesEnabled: live.chargesEnabled,
+        stripeConnectDetailsSubmitted: live.detailsSubmitted,
+      });
+      session.stripeConnectChargesEnabled = live.chargesEnabled;
+      session.stripeConnectDetailsSubmitted = live.detailsSubmitted;
+    }
+  }
 
   const status = integrationStatus();
   const hasBillingPrices = Boolean(
@@ -47,6 +76,7 @@ export default async function SettingsPage() {
   const hasCron = Boolean(process.env.CRON_SECRET);
   const allCore =
     status.database && status.clerk && status.stripe && status.r2 && status.resend;
+  const connect = connectFeatureStatus(session);
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -99,6 +129,11 @@ export default async function SettingsPage() {
             }
           />
           <Row
+            ok={connect.chargesEnabled}
+            title="Stripe Connect (Express)"
+            hint={connect.message}
+          />
+          <Row
             ok={status.r2}
             title="Cloudflare R2 uploads"
             hint={
@@ -139,6 +174,21 @@ export default async function SettingsPage() {
             a Stripe test payment.
           </p>
         )}
+      </div>
+
+      <div className="tb-panel mt-6">
+        <h2 className="font-semibold">Payouts — Stripe Connect</h2>
+        <p className="mt-1 text-sm text-[color:var(--tb-slate-soft)]">
+          Freelancer invoice money should land in your Stripe Express account
+          (Direct charges). Billing subscriptions stay on the platform account.
+        </p>
+        <div className="mt-4">
+          <ConnectActions
+            connectEnabled={status.stripeConnect}
+            chargesEnabled={connect.chargesEnabled}
+            hasAccount={Boolean(connect.accountId)}
+          />
+        </div>
       </div>
 
       <div className="tb-panel mt-6 space-y-2 text-sm">
