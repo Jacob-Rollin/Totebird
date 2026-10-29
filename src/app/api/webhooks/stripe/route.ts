@@ -2,8 +2,10 @@ import { NextResponse } from "next/server";
 import {
   getInvoiceByCheckoutSession,
   markInvoicePaid,
+  updateUserModeration,
 } from "@/lib/data";
 import { getStripe, hasStripeSafe } from "@/lib/stripe-webhook";
+import type { Plan } from "@/lib/plans";
 
 export async function POST(req: Request) {
   if (!hasStripeSafe()) {
@@ -38,16 +40,52 @@ export async function POST(req: Request) {
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as {
       id: string;
+      mode?: string;
+      customer?: string | null;
       payment_intent?: string | null;
-      metadata?: { linkId?: string };
+      metadata?: { linkId?: string; userId?: string; plan?: string };
     };
-    const byMeta = session.metadata?.linkId;
-    if (byMeta) {
-      await markInvoicePaid(byMeta, session.payment_intent ?? null);
+
+    if (session.mode === "subscription") {
+      const userId = session.metadata?.userId;
+      const plan = session.metadata?.plan as Plan | undefined;
+      if (userId && (plan === "solo" || plan === "studio")) {
+        await updateUserModeration(userId, {
+          plan,
+          stripeCustomerId: session.customer || undefined,
+        });
+      }
     } else {
-      const inv = await getInvoiceByCheckoutSession(session.id);
-      if (inv) {
-        await markInvoicePaid(inv.linkId, session.payment_intent ?? null);
+      const byMeta = session.metadata?.linkId;
+      if (byMeta) {
+        await markInvoicePaid(byMeta, session.payment_intent ?? null);
+      } else {
+        const inv = await getInvoiceByCheckoutSession(session.id);
+        if (inv) {
+          await markInvoicePaid(inv.linkId, session.payment_intent ?? null);
+        }
+      }
+    }
+  }
+
+  if (
+    event.type === "customer.subscription.deleted" ||
+    event.type === "customer.subscription.updated"
+  ) {
+    const sub = event.data.object as {
+      status?: string;
+      metadata?: { userId?: string; plan?: string };
+      customer?: string;
+    };
+    const userId = sub.metadata?.userId;
+    if (userId) {
+      if (event.type === "customer.subscription.deleted" || sub.status === "canceled") {
+        await updateUserModeration(userId, { plan: "free" });
+      } else if (sub.metadata?.plan === "solo" || sub.metadata?.plan === "studio") {
+        await updateUserModeration(userId, {
+          plan: sub.metadata.plan,
+          stripeCustomerId: typeof sub.customer === "string" ? sub.customer : undefined,
+        });
       }
     }
   }

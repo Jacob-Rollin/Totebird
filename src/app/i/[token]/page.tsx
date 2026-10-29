@@ -18,41 +18,39 @@ export default async function ClientInvoicePage({
   const bundle = await getInvoiceBundle(token);
   if (!bundle || !bundle.invoice) notFound();
 
-  const { link, invoice, owner } = bundle;
-  const closed = link.status === "closed" || link.status === "disabled";
+  const { link, invoice, lineItems, owner } = bundle;
+  const closed =
+    link.status === "closed" ||
+    link.status === "disabled" ||
+    link.status === "archived";
   const paid = invoice.status === "paid" || q.paid === "1";
 
   return (
     <div className="min-h-screen bg-[color:var(--tb-mist)]">
       <header className="border-b border-[color:var(--tb-line)] bg-white">
-        <div className="tb-shell flex items-center justify-between py-4">
-          <div className="flex items-center gap-3">
+        <div className="tb-shell flex items-center justify-between gap-3 py-4">
+          <div className="flex min-w-0 items-center gap-3">
             <Image
               src="/brand/icon/icon-orange-bird.png"
               alt=""
               width={36}
               height={36}
+              className="shrink-0"
             />
-            <div>
+            <div className="min-w-0">
               <p className="text-xs uppercase tracking-[0.12em] text-[color:var(--tb-slate-soft)]">
                 Invoice from {owner?.name || owner?.email || "your freelancer"}
               </p>
-              <h1 className="text-lg font-semibold">{link.title}</h1>
+              <h1 className="truncate text-lg font-semibold">{link.title}</h1>
             </div>
           </div>
-          <Link href="/" className="hidden sm:block">
-            <Image
-              src="/brand/wordmark-slate-orange.png"
-              alt="Totebird"
-              width={140}
-              height={35}
-              className="h-7 w-auto"
-            />
+          <Link href={`/i/${token}/print`} className="text-sm font-medium text-[color:var(--tb-slate-soft)]">
+            Print
           </Link>
         </div>
       </header>
 
-      <main className="tb-shell max-w-lg py-10">
+      <main className="tb-shell max-w-lg py-8 sm:py-10">
         {q.canceled === "1" && (
           <p className="mb-4 rounded-lg bg-[color:var(--tb-orange-soft)] px-4 py-3 text-sm">
             Checkout canceled — you can try again anytime.
@@ -73,6 +71,25 @@ export default async function ClientInvoicePage({
           </p>
           {invoice.description && (
             <p className="text-[color:var(--tb-slate-soft)]">{invoice.description}</p>
+          )}
+
+          {lineItems.length > 0 && (
+            <ul className="space-y-2 border-t border-[color:var(--tb-line)] pt-4 text-sm">
+              {lineItems.map((li) => (
+                <li key={li.id} className="flex justify-between gap-3">
+                  <span>
+                    {li.description}
+                    {li.quantity > 1 ? ` × ${li.quantity}` : ""}
+                  </span>
+                  <span>
+                    {formatMoney(
+                      li.quantity * li.unitAmountCents,
+                      invoice.currency,
+                    )}
+                  </span>
+                </li>
+              ))}
+            </ul>
           )}
 
           {!closed && (

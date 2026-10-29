@@ -15,6 +15,7 @@ export const linkStatusEnum = pgEnum("link_status", [
   "active",
   "completed",
   "closed",
+  "archived",
   "disabled",
 ]);
 export const invoiceStatusEnum = pgEnum("invoice_status", [
@@ -23,6 +24,11 @@ export const invoiceStatusEnum = pgEnum("invoice_status", [
   "paid",
   "overdue",
   "void",
+]);
+export const itemTypeEnum = pgEnum("item_type", [
+  "checkbox",
+  "text",
+  "file",
 ]);
 
 export const users = pgTable(
@@ -33,6 +39,7 @@ export const users = pgTable(
     email: text("email").notNull(),
     name: text("name"),
     plan: planEnum("plan").notNull().default("free"),
+    stripeCustomerId: text("stripe_customer_id"),
     disabled: boolean("disabled").notNull().default(false),
     flagged: boolean("flagged").notNull().default(false),
     flagReason: text("flag_reason"),
@@ -61,6 +68,7 @@ export const links = pgTable(
     title: text("title").notNull(),
     clientEmail: text("client_email"),
     status: linkStatusEnum("status").notNull().default("active"),
+    templateKey: text("template_key"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -84,7 +92,10 @@ export const checklistItems = pgTable(
       .notNull()
       .references(() => links.id),
     label: text("label").notNull(),
+    itemType: itemTypeEnum("item_type").notNull().default("checkbox"),
+    required: boolean("required").notNull().default(true),
     done: boolean("done").notNull().default(false),
+    answerText: text("answer_text"),
     position: integer("position").notNull().default(0),
     doneAt: timestamp("done_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -130,6 +141,7 @@ export const invoices = pgTable(
     stripeCheckoutSessionId: text("stripe_checkout_session_id"),
     stripePaymentIntentId: text("stripe_payment_intent_id"),
     paidAt: timestamp("paid_at", { withTimezone: true }),
+    paidManually: boolean("paid_manually").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -141,6 +153,21 @@ export const invoices = pgTable(
     uniqueIndex("invoices_link_id_idx").on(t.linkId),
     index("invoices_status_idx").on(t.status),
   ],
+);
+
+export const invoiceLineItems = pgTable(
+  "invoice_line_items",
+  {
+    id: text("id").primaryKey(),
+    invoiceId: text("invoice_id")
+      .notNull()
+      .references(() => invoices.id),
+    description: text("description").notNull(),
+    quantity: integer("quantity").notNull().default(1),
+    unitAmountCents: integer("unit_amount_cents").notNull(),
+    position: integer("position").notNull().default(0),
+  },
+  (t) => [index("invoice_line_items_invoice_id_idx").on(t.invoiceId)],
 );
 
 export const events = pgTable(
@@ -166,4 +193,5 @@ export type Link = typeof links.$inferSelect;
 export type ChecklistItem = typeof checklistItems.$inferSelect;
 export type FileRow = typeof files.$inferSelect;
 export type Invoice = typeof invoices.$inferSelect;
+export type InvoiceLineItem = typeof invoiceLineItems.$inferSelect;
 export type Event = typeof events.$inferSelect;

@@ -11,7 +11,11 @@ export async function POST(
   if (!link || link.type !== "checklist") {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-  if (link.status === "closed" || link.status === "disabled") {
+  if (
+    link.status === "closed" ||
+    link.status === "disabled" ||
+    link.status === "archived"
+  ) {
     return NextResponse.json({ error: "Link closed" }, { status: 403 });
   }
 
@@ -19,6 +23,9 @@ export async function POST(
   const filename = String(body.filename || "").slice(0, 200);
   const contentType = String(body.contentType || "application/octet-stream");
   const sizeBytes = Number(body.sizeBytes || 0);
+  const checklistItemId = body.checklistItemId
+    ? String(body.checklistItemId)
+    : null;
   if (!filename || !Number.isFinite(sizeBytes) || sizeBytes <= 0) {
     return NextResponse.json({ error: "Invalid file" }, { status: 400 });
   }
@@ -35,6 +42,7 @@ export async function POST(
 
   const file = await addFileRecord({
     linkId: link.id,
+    checklistItemId,
     filename,
     contentType,
     sizeBytes,

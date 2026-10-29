@@ -1,11 +1,20 @@
 import { NextResponse } from "next/server";
 import { requireSession } from "@/lib/auth";
-import { getInvoiceBundle, getLinkById } from "@/lib/data";
-import { appUrl } from "@/lib/env";
-import { sendReminderEmail } from "@/lib/resend";
-import { formatMoney } from "@/lib/format";
+import {
+  getChecklistBundle,
+  getInvoiceBundle,
+  getLinkById,
+  getLinkProgress,
+} from "@/lib/data";
+import { appUrl, hasDatabase, isDemoMode } from "@/lib/env";
+import { sendEmail } from "@/lib/resend";
+import { formatDate } from "@/lib/format";
+import {
+  checklistReminderEmail,
+  invoiceOverdueEmail,
+  invoicePaidEmail,
+} from "@/lib/email-templates";
 import { demoStore } from "@/db/demo-store";
-import { isDemoMode, hasDatabase } from "@/lib/env";
 
 export async function POST(req: Request) {
   const session = await requireSession();
@@ -13,8 +22,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { linkId } = await req.json();
-  const link = await getLinkById(String(linkId || ""));
+  const body = await req.json().catch(() => ({}));
+  const linkId = String(body.linkId || "");
+  const kind = String(body.kind || "reminder");
+  const link = await getLinkById(linkId);
   if (!link || link.userId !== session.id) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
@@ -25,26 +36,54 @@ export async function POST(req: Request) {
     );
   }
 
+  const freelancerName = session.name || session.email;
   const path = link.type === "checklist" ? `/c/${link.token}` : `/i/${link.token}`;
   const url = `${appUrl()}${path}`;
 
-  let subject = `Reminder: ${link.title}`;
-  let html = `<p>Friendly reminder from ${session.name || session.email}.</p>
-<p><a href="${url}">${link.title}</a></p>`;
-
-  if (link.type === "invoice") {
+  let email;
+  if (link.type === "checklist") {
+    const progress = await getLinkProgress(link.id);
+    email = checklistReminderEmail({
+      freelancerName,
+      title: link.title,
+      url,
+      progressPercent: progress.percent,
+    });
+  } else {
     const bundle = await getInvoiceBundle(link.token);
-    if (bundle?.invoice) {
-      subject = `Invoice reminder: ${formatMoney(bundle.invoice.amountCents, bundle.invoice.currency)}`;
-      html = `<p>Your invoice <strong>${link.title}</strong> for ${formatMoney(bundle.invoice.amountCents, bundle.invoice.currency)} is waiting.</p>
-<p><a href="${url}">Pay now</a></p>`;
+    if (!bundle?.invoice) {
+      return NextResponse.json({ error: "Invoice missing" }, { status: 404 });
+    }
+    if (kind === "paid" || bundle.invoice.status === "paid") {
+      email = invoicePaidEmail({
+        freelancerName,
+        title: link.title,
+        amountCents: bundle.invoice.amountCents,
+        currency: bundle.invoice.currency,
+        url,
+      });
+    } else {
+      email = invoiceOverdueEmail({
+        freelancerName,
+        title: link.title,
+        url,
+        amountCents: bundle.invoice.amountCents,
+        currency: bundle.invoice.currency,
+        dueLabel: bundle.invoice.dueAt
+          ? formatDate(bundle.invoice.dueAt)
+          : "soon",
+      });
     }
   }
 
-  const result = await sendReminderEmail({
+  // Touch checklist bundle so demo store stays warm
+  if (link.type === "checklist") await getChecklistBundle(link.token);
+
+  const result = await sendEmail({
     to: link.clientEmail,
-    subject,
-    html,
+    subject: email.subject,
+    html: email.html,
+    text: email.text,
   });
 
   if (isDemoMode() || !hasDatabase()) {
@@ -52,14 +91,18 @@ export async function POST(req: Request) {
       type: "reminder",
       linkId: link.id,
       userId: session.id,
-      meta: JSON.stringify({ to: link.clientEmail, demo: result.demo }),
+      meta: JSON.stringify({
+        to: link.clientEmail,
+        subject: email.subject,
+        demo: result.demo,
+      }),
     });
   }
 
   return NextResponse.json({
     ok: result.ok || result.demo,
     message: result.ok
-      ? "Reminder sent"
+      ? "Email sent"
       : result.message || "Logged (email not configured)",
   });
 }

@@ -11,8 +11,12 @@ export async function POST(
   if (!bundle || !bundle.invoice) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-  const { link, invoice } = bundle;
-  if (link.status === "closed" || link.status === "disabled") {
+  const { link, invoice, lineItems } = bundle;
+  if (
+    link.status === "closed" ||
+    link.status === "disabled" ||
+    link.status === "archived"
+  ) {
     return NextResponse.json({ error: "Link closed" }, { status: 403 });
   }
   if (invoice.status === "paid") {
@@ -27,6 +31,11 @@ export async function POST(
     token,
     clientEmail: link.clientEmail,
     linkId: link.id,
+    lineItems: lineItems.map((li) => ({
+      description: li.description,
+      quantity: li.quantity,
+      unitAmountCents: li.unitAmountCents,
+    })),
   });
 
   if (checkout.sessionId) {

@@ -457,10 +457,10 @@ export function LandingPage() {
               <p className="font-semibold text-[color:var(--tb-ink)]">Legal</p>
               <ul className="mt-3 space-y-2 text-[color:var(--tb-slate-soft)]">
                 <li>
-                  <span className="opacity-60">Privacy (soon)</span>
+                  <Link href="/privacy">Privacy</Link>
                 </li>
                 <li>
-                  <span className="opacity-60">Terms (soon)</span>
+                  <Link href="/terms">Terms</Link>
                 </li>
               </ul>
             </div>

@@ -6,6 +6,7 @@ const COLORS: Record<string, string> = {
   draft: "bg-slate-100 text-slate-600",
   overdue: "bg-rose-50 text-rose-800",
   closed: "bg-slate-100 text-slate-600",
+  archived: "bg-slate-100 text-slate-500",
   disabled: "bg-rose-50 text-rose-700",
   void: "bg-slate-100 text-slate-500",
   free: "bg-slate-100 text-slate-700",

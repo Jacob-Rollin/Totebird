@@ -1,13 +1,15 @@
-import { and, count, desc, eq, gte, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { getDb } from "@/db";
-import { demoStore } from "@/db/demo-store";
+import { demoStore, type CreateItemInput } from "@/db/demo-store";
 import {
   checklistItems,
   files,
+  invoiceLineItems,
   invoices,
   links,
   users,
   type Invoice,
+  type InvoiceLineItem,
   type Link,
   type User,
 } from "@/db/schema";
@@ -80,13 +82,14 @@ export async function listUsers() {
     }));
   }
   const db = getDb();
-  const rows = await db
+  return db
     .select({
       id: users.id,
       clerkId: users.clerkId,
       email: users.email,
       name: users.name,
       plan: users.plan,
+      stripeCustomerId: users.stripeCustomerId,
       disabled: users.disabled,
       flagged: users.flagged,
       flagReason: users.flagReason,
@@ -98,12 +101,13 @@ export async function listUsers() {
     .leftJoin(links, eq(links.userId, users.id))
     .groupBy(users.id)
     .orderBy(desc(users.createdAt));
-  return rows;
 }
 
 export async function updateUserModeration(
   id: string,
-  patch: Partial<Pick<User, "disabled" | "flagged" | "flagReason">>,
+  patch: Partial<
+    Pick<User, "disabled" | "flagged" | "flagReason" | "plan" | "stripeCustomerId">
+  >,
 ) {
   if (shouldUseDemoStore()) return demoStore.updateUser(id, patch);
   const [updated] = await getDb()
@@ -133,7 +137,7 @@ export async function listAllLinks() {
       ownerEmail: demoStore.getUserById(l.userId)?.email ?? "unknown",
     }));
   }
-  const rows = await getDb()
+  return getDb()
     .select({
       id: links.id,
       userId: links.userId,
@@ -142,6 +146,7 @@ export async function listAllLinks() {
       title: links.title,
       clientEmail: links.clientEmail,
       status: links.status,
+      templateKey: links.templateKey,
       createdAt: links.createdAt,
       updatedAt: links.updatedAt,
       closedAt: links.closedAt,
@@ -150,7 +155,6 @@ export async function listAllLinks() {
     .from(links)
     .innerJoin(users, eq(users.id, links.userId))
     .orderBy(desc(links.createdAt));
-  return rows;
 }
 
 export async function getLinkById(id: string) {
@@ -181,11 +185,29 @@ export async function countActiveLinks(userId: string) {
   return Number(row?.n ?? 0);
 }
 
+export async function storageUsedByUser(userId: string) {
+  if (shouldUseDemoStore()) return demoStore.storageUsedByUser(userId);
+  const userLinks = await getDb()
+    .select({ id: links.id })
+    .from(links)
+    .where(eq(links.userId, userId));
+  if (!userLinks.length) return 0;
+  const ids = userLinks.map((l) => l.id);
+  const [row] = await getDb()
+    .select({
+      n: sql<number>`coalesce(sum(${files.sizeBytes}), 0)`,
+    })
+    .from(files)
+    .where(inArray(files.linkId, ids));
+  return Number(row?.n ?? 0);
+}
+
 export async function createChecklistLink(input: {
   userId: string;
   title: string;
   clientEmail?: string | null;
-  items: string[];
+  items: CreateItemInput[];
+  templateKey?: string | null;
 }) {
   if (shouldUseDemoStore()) return demoStore.createChecklistLink(input);
 
@@ -202,15 +224,18 @@ export async function createChecklistLink(input: {
       title: input.title,
       clientEmail: input.clientEmail ?? null,
       status: "active",
+      templateKey: input.templateKey ?? null,
     })
     .returning();
 
   if (input.items.length) {
     await db.insert(checklistItems).values(
-      input.items.map((label, i) => ({
+      input.items.map((item, i) => ({
         id: newId("cli"),
         linkId,
-        label,
+        label: item.label,
+        itemType: item.itemType ?? "checkbox",
+        required: item.required ?? true,
         position: i,
       })),
     );
@@ -222,16 +247,19 @@ export async function createInvoiceLink(input: {
   userId: string;
   title: string;
   clientEmail?: string | null;
-  amountCents: number;
-  currency?: string;
   description?: string | null;
   dueAt?: Date | null;
+  lineItems: { description: string; quantity: number; unitAmountCents: number }[];
 }) {
   if (shouldUseDemoStore()) return demoStore.createInvoiceLink(input).link;
 
   const db = getDb();
   const linkId = newId("lnk");
   const token = newToken();
+  const amountCents = input.lineItems.reduce(
+    (sum, li) => sum + li.quantity * li.unitAmountCents,
+    0,
+  );
   const [link] = await db
     .insert(links)
     .values({
@@ -245,28 +273,95 @@ export async function createInvoiceLink(input: {
     })
     .returning();
 
+  const invoiceId = newId("inv");
   await db.insert(invoices).values({
-    id: newId("inv"),
+    id: invoiceId,
     linkId,
-    amountCents: input.amountCents,
-    currency: input.currency ?? "usd",
+    amountCents,
+    currency: "usd",
     description: input.description ?? null,
     dueAt: input.dueAt ?? null,
     status: "open",
   });
 
+  if (input.lineItems.length) {
+    await db.insert(invoiceLineItems).values(
+      input.lineItems.map((li, i) => ({
+        id: newId("ili"),
+        invoiceId,
+        description: li.description,
+        quantity: li.quantity,
+        unitAmountCents: li.unitAmountCents,
+        position: i,
+      })),
+    );
+  }
+
   return link;
+}
+
+export async function duplicateLink(linkId: string, userId: string) {
+  const link = await getLinkById(linkId);
+  if (!link || link.userId !== userId) return null;
+
+  if (shouldUseDemoStore()) return demoStore.duplicateLink(linkId);
+
+  if (link.type === "checklist") {
+    const items = await getDb().query.checklistItems.findMany({
+      where: eq(checklistItems.linkId, linkId),
+    });
+    return createChecklistLink({
+      userId,
+      title: `${link.title} (copy)`,
+      clientEmail: link.clientEmail,
+      templateKey: link.templateKey,
+      items: items.map((i) => ({
+        label: i.label,
+        itemType: i.itemType,
+        required: i.required,
+      })),
+    });
+  }
+
+  const inv = await getDb().query.invoices.findFirst({
+    where: eq(invoices.linkId, linkId),
+  });
+  if (!inv) return null;
+  const lines = await getDb().query.invoiceLineItems.findMany({
+    where: eq(invoiceLineItems.invoiceId, inv.id),
+  });
+  return createInvoiceLink({
+    userId,
+    title: `${link.title} (copy)`,
+    clientEmail: link.clientEmail,
+    description: inv.description,
+    dueAt: inv.dueAt,
+    lineItems: lines.length
+      ? lines.map((li) => ({
+          description: li.description,
+          quantity: li.quantity,
+          unitAmountCents: li.unitAmountCents,
+        }))
+      : [
+          {
+            description: inv.description || link.title,
+            quantity: 1,
+            unitAmountCents: inv.amountCents,
+          },
+        ],
+  });
 }
 
 export async function updateLinkStatus(id: string, status: Link["status"]) {
   if (shouldUseDemoStore()) return demoStore.updateLinkStatus(id, status);
+  const closed =
+    status === "closed" || status === "disabled" || status === "archived";
   const [updated] = await getDb()
     .update(links)
     .set({
       status,
       updatedAt: new Date(),
-      closedAt:
-        status === "closed" || status === "disabled" ? new Date() : null,
+      closedAt: closed ? new Date() : null,
     })
     .where(eq(links.id, id))
     .returning();
@@ -289,8 +384,8 @@ export async function getChecklistBundle(token: string) {
   const db = getDb();
   const items = await db.query.checklistItems.findMany({
     where: eq(checklistItems.linkId, link.id),
-    orderBy: [checklistItems.position],
   });
+  items.sort((a, b) => a.position - b.position);
   const fileRows = await db.query.files.findMany({
     where: eq(files.linkId, link.id),
   });
@@ -298,13 +393,51 @@ export async function getChecklistBundle(token: string) {
   return { link, items, files: fileRows, owner };
 }
 
+export async function updateChecklistItem(
+  itemId: string,
+  linkId: string,
+  patch: { done?: boolean; answerText?: string | null },
+) {
+  if (shouldUseDemoStore()) {
+    const item = demoStore.updateItem(itemId, patch);
+    await syncChecklistCompletion(linkId);
+    return item;
+  }
+
+  const db = getDb();
+  const updates: Record<string, unknown> = {};
+  if (patch.done !== undefined) {
+    updates.done = patch.done;
+    updates.doneAt = patch.done ? new Date() : null;
+  }
+  if (patch.answerText !== undefined) {
+    updates.answerText = patch.answerText;
+    if (patch.answerText?.trim()) {
+      updates.done = true;
+      updates.doneAt = new Date();
+    }
+  }
+  const [item] = await db
+    .update(checklistItems)
+    .set(updates)
+    .where(
+      and(eq(checklistItems.id, itemId), eq(checklistItems.linkId, linkId)),
+    )
+    .returning();
+  await syncChecklistCompletion(linkId);
+  return item ?? null;
+}
+
 export async function toggleChecklistItem(
   itemId: string,
   done: boolean,
   linkId: string,
 ) {
+  return updateChecklistItem(itemId, linkId, { done });
+}
+
+async function syncChecklistCompletion(linkId: string) {
   if (shouldUseDemoStore()) {
-    const item = demoStore.toggleItem(itemId, done);
     const items = demoStore.getItemsForLink(linkId);
     if (items.length && items.every((i) => i.done)) {
       demoStore.updateLinkStatus(linkId, "completed");
@@ -314,19 +447,9 @@ export async function toggleChecklistItem(
         demoStore.updateLinkStatus(linkId, "active");
       }
     }
-    return item;
+    return;
   }
-
-  const db = getDb();
-  const [item] = await db
-    .update(checklistItems)
-    .set({ done, doneAt: done ? new Date() : null })
-    .where(
-      and(eq(checklistItems.id, itemId), eq(checklistItems.linkId, linkId)),
-    )
-    .returning();
-
-  const remaining = await db.query.checklistItems.findMany({
+  const remaining = await getDb().query.checklistItems.findMany({
     where: eq(checklistItems.linkId, linkId),
   });
   if (remaining.length && remaining.every((i) => i.done)) {
@@ -337,7 +460,6 @@ export async function toggleChecklistItem(
       await updateLinkStatus(linkId, "active");
     }
   }
-  return item ?? null;
 }
 
 export async function addFileRecord(input: {
@@ -370,6 +492,11 @@ export async function addFileRecord(input: {
       storageKey: input.storageKey,
     })
     .returning();
+  if (input.checklistItemId) {
+    await updateChecklistItem(input.checklistItemId, input.linkId, {
+      done: true,
+    });
+  }
   return row;
 }
 
@@ -378,9 +505,11 @@ export async function getInvoiceBundle(token: string) {
   if (!link || link.type !== "invoice") return null;
 
   if (shouldUseDemoStore()) {
+    const invoice = demoStore.getInvoiceByLinkId(link.id) ?? null;
     return {
       link,
-      invoice: demoStore.getInvoiceByLinkId(link.id) ?? null,
+      invoice,
+      lineItems: invoice ? demoStore.getLineItems(invoice.id) : [],
       owner: demoStore.getUserById(link.userId) ?? null,
     };
   }
@@ -389,8 +518,14 @@ export async function getInvoiceBundle(token: string) {
     (await getDb().query.invoices.findFirst({
       where: eq(invoices.linkId, link.id),
     })) ?? null;
+  const lineItems = invoice
+    ? await getDb().query.invoiceLineItems.findMany({
+        where: eq(invoiceLineItems.invoiceId, invoice.id),
+      })
+    : [];
+  lineItems.sort((a, b) => a.position - b.position);
   const owner = await getUserById(link.userId);
-  return { link, invoice, owner };
+  return { link, invoice, lineItems, owner };
 }
 
 export async function listAllInvoices() {
@@ -419,6 +554,7 @@ export async function listAllInvoices() {
       dueAt: invoices.dueAt,
       status: invoices.status,
       paidAt: invoices.paidAt,
+      paidManually: invoices.paidManually,
       createdAt: invoices.createdAt,
       updatedAt: invoices.updatedAt,
       title: links.title,
@@ -435,8 +571,14 @@ export async function listAllInvoices() {
 export async function markInvoicePaid(
   linkId: string,
   paymentIntentId?: string | null,
+  manual = false,
 ) {
-  if (shouldUseDemoStore()) return demoStore.markInvoicePaid(linkId, paymentIntentId);
+  if (shouldUseDemoStore()) {
+    return demoStore.markInvoicePaid(linkId, {
+      paymentIntentId,
+      manual,
+    });
+  }
 
   const db = getDb();
   const [inv] = await db
@@ -444,6 +586,7 @@ export async function markInvoicePaid(
     .set({
       status: "paid",
       paidAt: new Date(),
+      paidManually: manual,
       stripePaymentIntentId: paymentIntentId ?? undefined,
       updatedAt: new Date(),
     })
@@ -525,4 +668,21 @@ export async function getUserDetail(id: string) {
   return { user, links: userLinks };
 }
 
-export type { Invoice, Link, User };
+export async function getLinkProgress(linkId: string) {
+  if (shouldUseDemoStore()) {
+    const items = demoStore.getItemsForLink(linkId);
+    const done = items.filter((i) => i.done).length;
+    return { done, total: items.length, percent: items.length ? Math.round((done / items.length) * 100) : 0 };
+  }
+  const items = await getDb().query.checklistItems.findMany({
+    where: eq(checklistItems.linkId, linkId),
+  });
+  const done = items.filter((i) => i.done).length;
+  return {
+    done,
+    total: items.length,
+    percent: items.length ? Math.round((done / items.length) * 100) : 0,
+  };
+}
+
+export type { Invoice, InvoiceLineItem, Link, User };

@@ -14,24 +14,28 @@ export default async function ClientChecklistPage({
   if (!bundle) notFound();
 
   const { link, items, files, owner } = bundle;
-  const closed = link.status === "closed" || link.status === "disabled";
+  const closed =
+    link.status === "closed" ||
+    link.status === "disabled" ||
+    link.status === "archived";
 
   return (
     <div className="min-h-screen bg-[color:var(--tb-mist)]">
       <header className="border-b border-[color:var(--tb-line)] bg-white">
-        <div className="tb-shell flex items-center justify-between py-4">
-          <div className="flex items-center gap-3">
+        <div className="tb-shell flex items-center justify-between gap-3 py-4">
+          <div className="flex min-w-0 items-center gap-3">
             <Image
               src="/brand/icon/icon-orange-bird.png"
               alt=""
               width={36}
               height={36}
+              className="shrink-0"
             />
-            <div>
+            <div className="min-w-0">
               <p className="text-xs uppercase tracking-[0.12em] text-[color:var(--tb-slate-soft)]">
                 Checklist from {owner?.name || owner?.email || "your freelancer"}
               </p>
-              <h1 className="text-lg font-semibold">{link.title}</h1>
+              <h1 className="truncate text-lg font-semibold">{link.title}</h1>
             </div>
           </div>
           <Link href="/" className="hidden sm:block">
@@ -46,7 +50,7 @@ export default async function ClientChecklistPage({
         </div>
       </header>
 
-      <main className="tb-shell max-w-2xl py-10">
+      <main className="tb-shell max-w-2xl py-8 sm:py-10">
         {closed ? (
           <div className="tb-panel text-[color:var(--tb-slate-soft)]">
             This link is no longer accepting updates.
@@ -54,7 +58,7 @@ export default async function ClientChecklistPage({
         ) : (
           <>
             <p className="mb-6 text-[color:var(--tb-slate-soft)]">
-              No account needed — check items off and drop files below.
+              No account needed — answer items and drop files below.
             </p>
             <ChecklistClient
               token={token}
@@ -62,11 +66,15 @@ export default async function ClientChecklistPage({
                 id: i.id,
                 label: i.label,
                 done: i.done,
+                itemType: i.itemType,
+                required: i.required,
+                answerText: i.answerText,
               }))}
               initialFiles={files.map((f) => ({
                 id: f.id,
                 filename: f.filename,
                 sizeBytes: f.sizeBytes,
+                checklistItemId: f.checklistItemId,
               }))}
               readOnly={closed}
             />
