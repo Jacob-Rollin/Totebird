@@ -11,7 +11,7 @@ import {
   listLinksForUser,
   storageUsedByUser,
 } from "@/lib/data";
-import { appUrl } from "@/lib/env";
+import { appUrl, integrationStatus } from "@/lib/env";
 import { formatDate } from "@/lib/format";
 import {
   canCreateLink,
@@ -36,6 +36,12 @@ export default async function DashboardPage({
   const limits = PLAN_LIMITS[session.plan];
   const canCreate = canCreateLink(session.plan, active);
   const base = appUrl();
+  const integrations = integrationStatus();
+  const needsConnect =
+    integrations.demoMode ||
+    !integrations.stripe ||
+    !integrations.r2 ||
+    !integrations.resend;
 
   const progressById: Record<string, { percent: number; done: number; total: number }> =
     {};
@@ -88,6 +94,19 @@ export default async function DashboardPage({
           archive a link, or{" "}
           <Link href="/app/billing" className="font-semibold underline">
             upgrade
+          </Link>
+          .
+        </p>
+      )}
+
+      {needsConnect && (
+        <p className="mt-4 rounded-lg border border-[color:var(--tb-line)] bg-white px-4 py-3 text-sm text-[color:var(--tb-slate)]">
+          Connect Stripe, R2, and Resend when ready —{" "}
+          <Link
+            href="/app/settings"
+            className="font-semibold text-[color:var(--tb-orange-deep)]"
+          >
+            open settings checklist
           </Link>
           .
         </p>
