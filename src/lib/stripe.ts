@@ -183,7 +183,8 @@ export async function createSubscriptionCheckout(input: {
       customer: input.customerId || undefined,
       customer_email: input.customerId ? undefined : input.customerEmail,
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${appUrl()}/app/billing?upgraded=1`,
+      // {CHECKOUT_SESSION_ID} is replaced by Stripe so /billing can sync if the webhook lags.
+      success_url: `${appUrl()}/app/billing?upgraded=1&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${appUrl()}/app/billing?canceled=1`,
       client_reference_id: input.userId,
       allow_promotion_codes: true,

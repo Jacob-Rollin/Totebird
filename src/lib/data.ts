@@ -140,6 +140,61 @@ export async function getUserByClerkId(clerkId: string) {
   );
 }
 
+/** Live billing path: always hit Neon when Clerk+DB are configured (never demo-store fallback). */
+function isLiveBillingDb() {
+  return hasDatabase() && !isDemoMode();
+}
+
+export async function getUserByStripeCustomerId(customerId: string) {
+  if (!customerId) return null;
+  if (!isLiveBillingDb()) {
+    return (
+      demoStore.getUsers().find((u) => u.stripeCustomerId === customerId) ?? null
+    );
+  }
+  return (
+    (await getDb().query.users.findFirst({
+      where: eq(users.stripeCustomerId, customerId),
+    })) ?? null
+  );
+}
+
+export async function getUserByIdBilling(id: string) {
+  if (!id) return null;
+  if (!isLiveBillingDb()) return demoStore.getUserById(id) ?? null;
+  return (
+    (await getDb().query.users.findFirst({ where: eq(users.id, id) })) ?? null
+  );
+}
+
+export async function getUserByEmailBilling(email: string) {
+  if (!email) return null;
+  if (!isLiveBillingDb()) return demoStore.getUserByEmail(email) ?? null;
+  return (
+    (await getDb().query.users.findFirst({ where: eq(users.email, email) })) ??
+    null
+  );
+}
+
+export type UserBillingPatch = Partial<
+  Pick<User, "plan" | "stripeCustomerId" | "stripeSubscriptionId">
+>;
+
+/**
+ * Persist Stripe plan fields. In live mode always writes Neon — never the
+ * in-memory demo store — so a warm function that previously marked the DB
+ * unusable cannot silently drop checkout.session.completed upgrades.
+ */
+export async function updateUserBilling(id: string, patch: UserBillingPatch) {
+  if (!isLiveBillingDb()) return demoStore.updateUser(id, patch);
+  const [updated] = await getDb()
+    .update(users)
+    .set({ ...patch, updatedAt: new Date() })
+    .where(eq(users.id, id))
+    .returning();
+  return updated ?? null;
+}
+
 export async function listUsers() {
   if (shouldUseDemoStore()) {
     return demoStore.getUsers().map((u) => ({
@@ -186,6 +241,32 @@ export async function updateUserModeration(
     >
   >,
 ) {
+  // Plan / Stripe customer fields must use the Neon-safe billing writer when live.
+  const billingKeys = [
+    "plan",
+    "stripeCustomerId",
+    "stripeSubscriptionId",
+  ] as const;
+  const hasBilling = billingKeys.some((k) => patch[k] !== undefined);
+  if (hasBilling && isLiveBillingDb()) {
+    const billingPatch: UserBillingPatch = {};
+    for (const k of billingKeys) {
+      if (patch[k] !== undefined) {
+        (billingPatch as Record<string, unknown>)[k] = patch[k];
+      }
+    }
+    const billed = await updateUserBilling(id, billingPatch);
+    const rest = { ...patch };
+    for (const k of billingKeys) delete rest[k];
+    if (Object.keys(rest).length === 0) return billed;
+    const [updated] = await getDb()
+      .update(users)
+      .set({ ...rest, updatedAt: new Date() })
+      .where(eq(users.id, id))
+      .returning();
+    return updated ?? billed;
+  }
+
   if (shouldUseDemoStore()) return demoStore.updateUser(id, patch);
   const [updated] = await getDb()
     .update(users)
