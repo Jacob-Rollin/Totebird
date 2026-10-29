@@ -12,9 +12,7 @@ Practical steps only. Full click-path walkthrough for Neon/Clerk/R2/Resend/Strip
 
 1. Open the **totebird** site → **Site configuration → Build & deploy → Continuous deployment**
 2. Connect **`Jacob-Rollin/Totebird`**
-3. **Production branch**
-   - Prefer **`main`** after merging [#1](https://github.com/Jacob-Rollin/Totebird/pull/1), **or**
-   - Temporarily deploy **`cursor/totebird-mvp-scaffold-e511`** until you merge
+3. **Production branch:** **`main`**
 4. Build settings are in [`netlify.toml`](./netlify.toml):
    - Build command: `npm run build`
    - Plugin: `@netlify/plugin-nextjs` (publish `.next` — do not point publish at `out/` or `dist/`)
@@ -26,15 +24,16 @@ In **Site configuration → Environment variables** (same names as [`.env.exampl
 
 | Priority | Variable | Example / note |
 |---|---|---|
-| Now | `NEXT_PUBLIC_APP_URL` | `https://YOUR-SITE.netlify.app` (Domain management) |
-| Now | `ADMIN_EMAIL` | Your signup email (founder `/admin`) |
-| Next | `DATABASE_URL` | Neon — then `npm run db:push` from a laptop |
-| Next | Clerk keys + path vars | See `.env.example` |
-| Next | `STRIPE_*` + Price IDs | Webhook URL below |
+| Done | `NEXT_PUBLIC_APP_URL` | `https://YOUR-SITE.netlify.app` |
+| Done | `DATABASE_URL` | Neon on Netlify — hosted app uses it after deploy |
+| Now | `ADMIN_EMAIL` | Email you will Sign up with (founder `/admin`) |
+| Now | Clerk keys + path vars | See `.env.example` — then **one redeploy** |
 | Next | `R2_*`, `RESEND_*` | Uploads + email |
+| Next | `STRIPE_*` + Price IDs | Webhook URL below |
 | Optional | `CRON_SECRET` | Locks down daily reminder cron |
+| Later (laptop only) | `npm run db:push` | Only if you run locally with `DATABASE_URL` in `.env.local` — **not** required for Netlify after Clerk |
 
-Redeploy after adding vars (or enable “builds on env change”).
+Redeploy after adding vars (or enable “builds on env change”). Local checklist (no values printed): `npm run prove:env`.
 
 ### 3. Stripe webhook URL
 
@@ -65,8 +64,9 @@ If `CRON_SECRET` is unset, the route stays open (fine for local demo; set a secr
 
 - Smoke after each deploy: `/`, `/demo`, `/app`, `/app/settings`, `/admin`
 - Custom domain later: update `NEXT_PUBLIC_APP_URL` + Clerk allowed origins + Stripe webhook URL
-- Merge PR → switch Netlify production branch to `main`
-- Local parity: `cp .env.example .env.local && npm i && npm run dev`
+- Production branch stays **`main`**
+- Local parity: `cp .env.example .env.local && npm i && npm run prove:env && npm run dev`
+- Note: Netlify demo-mode data is in-memory per instance (ephemeral) until Neon + Clerk are both live
 
 ---
 
@@ -106,6 +106,7 @@ Missing integrations degrade gracefully (upload metadata without R2; pay/upgrade
 ```bash
 cp .env.example .env.local
 npm install
+npm run prove:env   # SET/MISSING checklist — never prints secret values
 npm run dev
 ```
 
@@ -137,6 +138,10 @@ See [`.env.example`](./.env.example). Create Stripe Products/Prices for Solo ($1
 ## Neon / schema
 
 Linked via [`neon.ts`](./neon.ts) + `.neon` (gitignored) to project `shiny-rice-23336236` / branch `production`. Postgres only — no Neon Auth / Object Storage (app uses Clerk + R2). Driver: `@neondatabase/serverless` + Drizzle HTTP (Netlify-friendly).
+
+**Hosted:** put `DATABASE_URL` in Netlify env (already done if you followed setup). Redeploy after Clerk — that is enough for the live site. Netlify does **not** run `db:push`.
+
+**Local later (optional):** only when you develop on a laptop with the same URL in `.env.local`:
 
 ```bash
 neon login                 # browser once (or NEON_API_KEY)

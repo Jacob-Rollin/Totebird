@@ -2,8 +2,17 @@
 /**
  * Minimal smoke test against a running server (default http://127.0.0.1:3000).
  * Usage: node scripts/smoke.mjs [baseUrl]
+ *
+ * If CRON_SECRET is set in the environment, /api/cron/reminders is called with
+ * Authorization: Bearer … (avoids false 401 failures).
  */
+import { config } from "dotenv";
+
+config({ path: ".env.local" });
+config({ path: ".env" });
+
 const base = (process.argv[2] || "http://127.0.0.1:3000").replace(/\/$/, "");
+const cronSecret = process.env.CRON_SECRET?.trim() || "";
 
 const paths = [
   "/",
@@ -29,8 +38,12 @@ const paths = [
 let failed = 0;
 for (const path of paths) {
   const url = `${base}${path}`;
+  const headers = {};
+  if (path === "/api/cron/reminders" && cronSecret) {
+    headers.Authorization = `Bearer ${cronSecret}`;
+  }
   try {
-    const res = await fetch(url, { redirect: "manual" });
+    const res = await fetch(url, { redirect: "manual", headers });
     const ok = res.status >= 200 && res.status < 400;
     console.log(`${ok ? "OK" : "FAIL"} ${res.status} ${path}`);
     if (!ok) failed++;

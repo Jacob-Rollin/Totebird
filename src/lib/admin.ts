@@ -13,5 +13,8 @@ export function isAdminEmailOrId(email: string, clerkId?: string | null) {
 
 export function requireAdmin(session: SessionUser | null): session is SessionUser {
   if (!session) return false;
+  // Honor session.isAdmin (demoSession sets true) so ADMIN_USER_IDS-only
+  // allowlists don't lock out the seeded demo founder.
+  if (session.isAdmin) return true;
   return isAdminEmailOrId(session.email, session.clerkId);
 }

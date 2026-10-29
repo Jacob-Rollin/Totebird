@@ -1,13 +1,11 @@
 # Totebird — Netlify + Next.js (App Router)
-# Site title: totebird — link repo Jacob-Rollin/Totebird in Site configuration.
+# Site: totebird · repo Jacob-Rollin/Totebird · production branch: main
 #
-# Production branch: prefer `main` after merging PR #1,
-# or temporarily deploy `cursor/totebird-mvp-scaffold-e511`.
-#
-# Required early env (Site configuration → Environment variables):
-#   NEXT_PUBLIC_APP_URL = https://YOUR-SITE.netlify.app
-#   ADMIN_EMAIL         = your signup email
-# Full guide: see README “Deploy on Netlify” (don’t paste every key here).
+# Already likely set (do not re-paste secrets into chat):
+#   DATABASE_URL, NEXT_PUBLIC_APP_URL
+# Next in Netlify env (see README + Project you-only checklist):
+#   ADMIN_EMAIL, Clerk, R2, Resend, Stripe, optional CRON_SECRET
+# Do not paste every key into this file.
 
 [build]
   command = "npm run build"
