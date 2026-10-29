@@ -134,12 +134,27 @@ See [`.env.example`](./.env.example). Create Stripe Products/Prices for Solo ($1
 - **Settings** — connect-platform checklist at `/app/settings`
 - **Legal** — `/privacy`, `/terms` stubs
 
-## Schema
+## Neon / schema
+
+Linked via [`neon.ts`](./neon.ts) + `.neon` (gitignored) to project `shiny-rice-23336236` / branch `production`. Postgres only — no Neon Auth / Object Storage (app uses Clerk + R2). Driver: `@neondatabase/serverless` + Drizzle HTTP (Netlify-friendly).
 
 ```bash
-npm run db:push
-# migrations: src/db/migrations/ (0000_init + 0001_enrich)
+neon login                 # browser once (or NEON_API_KEY)
+neon env pull              # writes DATABASE_URL into .env.local
+neon deploy                # applies neon.ts
+npm run db:push            # Drizzle schema → Neon
+npm run prove:db           # insert/select/delete smoke
 ```
+
+Migrations also in `src/db/migrations/` (`0000_init` + `0001_enrich`).
+
+### Clerk
+
+Sign-in/up → `/sign-in`, `/sign-up`; after auth → `/app`.
+
+### R2 / Resend / Stripe
+
+Follow [`.env.example`](./.env.example) and the Project platform setup guide. Webhook: `POST /api/webhooks/stripe` (`checkout.session.completed`, subscription updated/deleted). Netlify deploy steps are at the top of this README.
 
 ## App routes
 
