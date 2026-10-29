@@ -80,6 +80,16 @@ export default async function AdminLinksPage() {
                     </tr>
                   );
                 })}
+                {links.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={7}
+                      className="text-[color:var(--tb-slate-soft)]"
+                    >
+                      No links yet.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
