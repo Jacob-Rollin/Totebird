@@ -3,11 +3,13 @@ import { getDb } from "@/db";
 import { demoStore, type CreateItemInput } from "@/db/demo-store";
 import {
   checklistItems,
+  feedback,
   files,
   invoiceLineItems,
   invoices,
   links,
   users,
+  type Feedback,
   type Invoice,
   type InvoiceLineItem,
   type Link,
@@ -922,4 +924,156 @@ export async function getLinkProgress(linkId: string) {
   );
 }
 
-export type { Invoice, InvoiceLineItem, Link, User };
+/** Missing feedback table must not poison the whole DB into demo mode. */
+function isMissingFeedbackRelation(err: unknown) {
+  const e = err as { code?: string; message?: string };
+  if (e?.code === "42P01") return true;
+  const msg = e?.message || "";
+  return /relation ["']?feedback["']? does not exist/i.test(msg);
+}
+
+async function feedbackDbTry<T>(
+  run: () => Promise<T>,
+  fallback: () => T | Promise<T>,
+): Promise<T> {
+  if (shouldUseDemoStore()) return fallback();
+  try {
+    return await run();
+  } catch (err) {
+    if (isMissingFeedbackRelation(err)) {
+      console.warn(
+        "[totebird] feedback table missing; soft-failing. Apply neon-feedback-table.sql in Neon SQL Editor.",
+      );
+      return fallback();
+    }
+    noteDbFailure(err);
+    return fallback();
+  }
+}
+
+export type FeedbackListFilters = {
+  type?: Feedback["type"];
+  status?: Feedback["status"];
+};
+
+export type FeedbackListRow = Feedback & {
+  ownerEmail: string | null;
+};
+
+export class FeedbackTableMissingError extends Error {
+  constructor() {
+    super("FEEDBACK_TABLE_MISSING");
+    this.name = "FeedbackTableMissingError";
+  }
+}
+
+export async function createFeedback(input: {
+  userId?: string | null;
+  type: Feedback["type"];
+  body: string;
+  pageUrl?: string | null;
+}): Promise<Feedback> {
+  const body = input.body.trim();
+  const demoCreate = () =>
+    demoStore.createFeedback({
+      userId: input.userId,
+      type: input.type,
+      body,
+      pageUrl: input.pageUrl,
+    });
+
+  if (shouldUseDemoStore()) return demoCreate();
+
+  try {
+    const [row] = await getDb()
+      .insert(feedback)
+      .values({
+        id: newId("fbk"),
+        userId: input.userId ?? null,
+        type: input.type,
+        body,
+        pageUrl: input.pageUrl?.trim() || null,
+      })
+      .returning();
+    return row;
+  } catch (err) {
+    if (isMissingFeedbackRelation(err)) {
+      console.warn(
+        "[totebird] feedback table missing; refuse create. Apply neon-feedback-table.sql in Neon SQL Editor.",
+      );
+      throw new FeedbackTableMissingError();
+    }
+    noteDbFailure(err);
+    return demoCreate();
+  }
+}
+
+export async function listFeedback(
+  filters: FeedbackListFilters = {},
+): Promise<FeedbackListRow[]> {
+  return feedbackDbTry(
+    async () => {
+      const conditions = [];
+      if (filters.type) conditions.push(eq(feedback.type, filters.type));
+      if (filters.status) conditions.push(eq(feedback.status, filters.status));
+      const where =
+        conditions.length === 0
+          ? undefined
+          : conditions.length === 1
+            ? conditions[0]
+            : and(...conditions);
+
+      return getDb()
+        .select({
+          id: feedback.id,
+          userId: feedback.userId,
+          type: feedback.type,
+          body: feedback.body,
+          pageUrl: feedback.pageUrl,
+          status: feedback.status,
+          priority: feedback.priority,
+          createdAt: feedback.createdAt,
+          updatedAt: feedback.updatedAt,
+          ownerEmail: users.email,
+        })
+        .from(feedback)
+        .leftJoin(users, eq(users.id, feedback.userId))
+        .where(where)
+        .orderBy(desc(feedback.createdAt));
+    },
+    () => {
+      let rows = demoStore.getFeedback();
+      if (filters.type) rows = rows.filter((r) => r.type === filters.type);
+      if (filters.status)
+        rows = rows.filter((r) => r.status === filters.status);
+      return rows
+        .slice()
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+        .map((r) => ({
+          ...r,
+          ownerEmail: r.userId
+            ? (demoStore.getUserById(r.userId)?.email ?? null)
+            : null,
+        }));
+    },
+  );
+}
+
+export async function updateFeedback(
+  id: string,
+  patch: Partial<Pick<Feedback, "status" | "priority">>,
+): Promise<Feedback | null> {
+  return feedbackDbTry(
+    async () => {
+      const [row] = await getDb()
+        .update(feedback)
+        .set({ ...patch, updatedAt: new Date() })
+        .where(eq(feedback.id, id))
+        .returning();
+      return row ?? null;
+    },
+    () => demoStore.updateFeedback(id, patch),
+  );
+}
+
+export type { Feedback, Invoice, InvoiceLineItem, Link, User };
