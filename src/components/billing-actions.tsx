@@ -9,7 +9,7 @@ export function BillingActions({
   demoMode,
 }: {
   plan: Exclude<Plan, "free"> | Plan;
-  mode: "upgrade" | "portal";
+  mode: "upgrade" | "downgrade" | "portal";
   demoMode: boolean;
 }) {
   const [interval, setInterval] = useState<"month" | "year">("month");
@@ -45,7 +45,7 @@ export function BillingActions({
             }
           }}
         >
-          Manage in Stripe
+          Manage or cancel
         </button>
         {message && (
           <p className="mt-2 text-xs text-[color:var(--tb-slate-soft)]">{message}</p>
@@ -55,6 +55,11 @@ export function BillingActions({
   }
 
   if (plan === "free") return null;
+
+  const isDowngrade = mode === "downgrade";
+  const actionLabel = isDowngrade
+    ? `Downgrade to ${plan}`
+    : `Upgrade to ${plan}`;
 
   return (
     <div className="space-y-2">
@@ -76,7 +81,7 @@ export function BillingActions({
       </div>
       <button
         type="button"
-        className="tb-btn tb-btn-primary w-full text-sm"
+        className={`tb-btn w-full text-sm ${isDowngrade ? "tb-btn-secondary" : "tb-btn-primary"}`}
         disabled={loading}
         onClick={async () => {
           setLoading(true);
@@ -102,7 +107,11 @@ export function BillingActions({
           }
         }}
       >
-        {loading ? "…" : demoMode ? `Switch to ${plan} (demo)` : `Upgrade to ${plan}`}
+        {loading
+          ? "…"
+          : demoMode
+            ? `Switch to ${plan} (demo)`
+            : actionLabel}
       </button>
       {message && (
         <p className="text-xs text-[color:var(--tb-slate-soft)]">{message}</p>

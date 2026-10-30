@@ -1,45 +1,21 @@
 import { appUrl, platformFeeBps } from "@/lib/env";
 import { getStripe } from "@/lib/stripe-client";
 import type { Plan } from "@/lib/plans";
+import {
+  applyPaidPlanToUser,
+  cancelOtherTotebirdSubscriptions,
+  listActiveTotebirdSubscriptions,
+  pickHighestSubscription,
+  planFromSubscription,
+  subscriptionPriceId,
+} from "@/lib/stripe-billing-sync";
+import {
+  billingPriceId,
+  hasBillingPrices,
+  planFromPriceId,
+} from "@/lib/stripe-prices";
 
-export { getStripe };
-
-export function billingPriceId(
-  plan: "solo" | "studio",
-  interval: "month" | "year",
-) {
-  const map: Record<string, string | undefined> = {
-    "solo:month": process.env.STRIPE_PRICE_SOLO_MONTHLY,
-    "solo:year": process.env.STRIPE_PRICE_SOLO_YEARLY,
-    "studio:month": process.env.STRIPE_PRICE_STUDIO_MONTHLY,
-    "studio:year": process.env.STRIPE_PRICE_STUDIO_YEARLY,
-  };
-  return map[`${plan}:${interval}`] || null;
-}
-
-/** Map a Stripe Price ID back to Totebird plan (Customer Portal switches). */
-export function planFromPriceId(priceId: string | null | undefined): Plan | null {
-  if (!priceId) return null;
-  const entries: [Plan, string | undefined][] = [
-    ["solo", process.env.STRIPE_PRICE_SOLO_MONTHLY],
-    ["solo", process.env.STRIPE_PRICE_SOLO_YEARLY],
-    ["studio", process.env.STRIPE_PRICE_STUDIO_MONTHLY],
-    ["studio", process.env.STRIPE_PRICE_STUDIO_YEARLY],
-  ];
-  for (const [plan, id] of entries) {
-    if (id && id === priceId) return plan;
-  }
-  return null;
-}
-
-export function hasBillingPrices() {
-  return Boolean(
-    process.env.STRIPE_PRICE_SOLO_MONTHLY ||
-      process.env.STRIPE_PRICE_SOLO_YEARLY ||
-      process.env.STRIPE_PRICE_STUDIO_MONTHLY ||
-      process.env.STRIPE_PRICE_STUDIO_YEARLY,
-  );
-}
+export { getStripe, billingPriceId, hasBillingPrices, planFromPriceId };
 
 /** Application fee cents for Connect Direct charges (Free plan only). */
 export function applicationFeeCents(amountCents: number, plan: Plan) {
@@ -150,11 +126,17 @@ export async function createInvoiceCheckout(input: {
   };
 }
 
+/**
+ * First paid plan → Checkout Session.
+ * Existing Totebird sub → subscriptions.update (proration) so Solo→Studio
+ * does not stack a second active subscription.
+ */
 export async function createSubscriptionCheckout(input: {
   plan: Exclude<Plan, "free">;
   interval: "month" | "year";
   customerEmail: string;
   customerId?: string | null;
+  subscriptionId?: string | null;
   userId: string;
   /** Prefer request origin (www) over stale NEXT_PUBLIC_APP_URL. */
   returnBaseUrl?: string | null;
@@ -180,11 +162,106 @@ export async function createSubscriptionCheckout(input: {
     };
   }
 
+  let customerId = input.customerId || null;
+  if (!customerId && input.subscriptionId) {
+    try {
+      const existing = await stripe.subscriptions.retrieve(input.subscriptionId);
+      customerId =
+        typeof existing.customer === "string"
+          ? existing.customer
+          : existing.customer?.id ?? null;
+    } catch {
+      /* fall through to Checkout */
+    }
+  }
+
+  if (customerId) {
+    try {
+      const ranked = await listActiveTotebirdSubscriptions(stripe, customerId);
+      // Always mutate the highest active Totebird sub (studio > solo). A stale
+      // users.stripe_subscription_id pointing at Solo must not win over Studio.
+      const current = pickHighestSubscription(ranked, input.subscriptionId);
+
+      if (current) {
+        const currentPrice = subscriptionPriceId(current.sub);
+        if (currentPrice === priceId && current.plan === input.plan) {
+          await cancelOtherTotebirdSubscriptions(
+            stripe,
+            customerId,
+            current.sub.id,
+          );
+          await applyPaidPlanToUser({
+            userId: input.userId,
+            plan: input.plan,
+            stripeCustomerId: customerId,
+            stripeSubscriptionId: current.sub.id,
+          });
+          return {
+            ok: true as const,
+            demo: false as const,
+            url: `${base}/app/billing?upgraded=1`,
+            message: null as string | null,
+          };
+        }
+
+        const itemId = current.sub.items.data[0]?.id;
+        if (!itemId) {
+          return {
+            ok: false as const,
+            demo: false as const,
+            url: null as string | null,
+            message: "Existing subscription has no line item to update.",
+          };
+        }
+
+        const updated = await stripe.subscriptions.update(current.sub.id, {
+          items: [{ id: itemId, price: priceId }],
+          proration_behavior: "create_prorations",
+          metadata: {
+            userId: input.userId,
+            plan: input.plan,
+          },
+          cancel_at_period_end: false,
+        });
+
+        await cancelOtherTotebirdSubscriptions(
+          stripe,
+          customerId,
+          updated.id,
+        );
+
+        const fromSub = planFromSubscription(updated);
+        const resolvedPlan =
+          fromSub === "solo" || fromSub === "studio" ? fromSub : input.plan;
+
+        await applyPaidPlanToUser({
+          userId: input.userId,
+          plan: resolvedPlan,
+          stripeCustomerId: customerId,
+          stripeSubscriptionId: updated.id,
+        });
+
+        return {
+          ok: true as const,
+          demo: false as const,
+          url: `${base}/app/billing?upgraded=1`,
+          message: null as string | null,
+        };
+      }
+    } catch (err) {
+      console.error(
+        "[totebird] subscription update failed; falling back to Checkout",
+        err,
+      );
+    }
+  }
+
+  // First paid plan (or no usable existing sub): Checkout Session.
   const session = await stripe.checkout.sessions.create(
     {
       mode: "subscription",
-      customer: input.customerId || undefined,
-      customer_email: input.customerId ? undefined : input.customerEmail,
+      customer: customerId || undefined,
+      customer_email: customerId ? undefined : input.customerEmail,
       line_items: [{ price: priceId, quantity: 1 }],
       // {CHECKOUT_SESSION_ID} is replaced by Stripe so /billing can sync if the webhook lags.
       success_url: `${base}/app/billing?upgraded=1&session_id={CHECKOUT_SESSION_ID}`,
@@ -202,7 +279,9 @@ export async function createSubscriptionCheckout(input: {
         },
       },
     },
-    { idempotencyKey: `sub_checkout_${input.userId}_${input.plan}_${input.interval}` },
+    {
+      idempotencyKey: `sub_checkout_${input.userId}_${input.plan}_${input.interval}`,
+    },
   );
 
   return {
