@@ -2,6 +2,7 @@ import { newId, newToken } from "@/lib/ids";
 import type {
   ChecklistItem,
   Event,
+  Feedback,
   FileRow,
   Invoice,
   InvoiceLineItem,
@@ -17,12 +18,13 @@ type Store = {
   invoices: Invoice[];
   invoiceLineItems: InvoiceLineItem[];
   events: Event[];
+  feedback: Feedback[];
 };
 
-const g = globalThis as unknown as { __totebirdDemoV2?: Store };
+const g = globalThis as unknown as { __totebirdDemoV3?: Store };
 
 function store(): Store {
-  if (!g.__totebirdDemoV2) {
+  if (!g.__totebirdDemoV3) {
     const now = new Date();
     const demoUser: User = {
       id: "usr_demo",
@@ -73,7 +75,7 @@ function store(): Store {
 
     const invId = "inv_demo";
 
-    g.__totebirdDemoV2 = {
+    g.__totebirdDemoV3 = {
       users: [
         demoUser,
         {
@@ -95,6 +97,7 @@ function store(): Store {
         },
       ],
       links: [checklistLink, invoiceLink],
+      feedback: [],
       checklistItems: [
         {
           id: "cli_1",
@@ -216,7 +219,7 @@ function store(): Store {
       events: [],
     };
   }
-  return g.__totebirdDemoV2;
+  return g.__totebirdDemoV3!;
 }
 
 export type CreateItemInput = {
@@ -549,6 +552,46 @@ export const demoStore = {
     };
     store().events.push(ev);
     return ev;
+  },
+
+  getFeedback() {
+    return store().feedback;
+  },
+
+  getFeedbackById(id: string) {
+    return store().feedback.find((f) => f.id === id) ?? null;
+  },
+
+  createFeedback(input: {
+    userId?: string | null;
+    type: Feedback["type"];
+    body: string;
+    pageUrl?: string | null;
+  }): Feedback {
+    const now = new Date();
+    const row: Feedback = {
+      id: newId("fbk"),
+      userId: input.userId ?? null,
+      type: input.type,
+      body: input.body,
+      pageUrl: input.pageUrl ?? null,
+      status: "new",
+      priority: "normal",
+      createdAt: now,
+      updatedAt: now,
+    };
+    store().feedback.push(row);
+    return row;
+  },
+
+  updateFeedback(
+    id: string,
+    patch: Partial<Pick<Feedback, "status" | "priority">>,
+  ) {
+    const row = demoStore.getFeedbackById(id);
+    if (!row) return null;
+    Object.assign(row, patch, { updatedAt: new Date() });
+    return row;
   },
 
   metrics() {

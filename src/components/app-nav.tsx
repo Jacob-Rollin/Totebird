@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { FeedbackButton } from "@/components/feedback-button";
 import { TotebirdLogo } from "@/components/logo";
 import type { SessionUser } from "@/lib/auth";
 
@@ -66,11 +67,18 @@ export function AppNav({
                 >
                   Invoices
                 </Link>
+                <Link
+                  href="/admin/feedback"
+                  className="hover:text-[color:var(--tb-ink)]"
+                >
+                  Feedback
+                </Link>
               </>
             )}
           </nav>
         </div>
         <div className="flex items-center gap-3 text-sm">
+          {section === "app" && <FeedbackButton />}
           {user.isAdmin && section === "app" && (
             <Link
               href="/admin"

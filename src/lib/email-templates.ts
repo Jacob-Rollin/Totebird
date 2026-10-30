@@ -65,6 +65,34 @@ ${input.freelancerName}`;
   return { subject, text, html };
 }
 
+export function newFeedbackEmail(input: {
+  type: "bug" | "suggestion";
+  body: string;
+  pageUrl?: string | null;
+  fromEmail?: string | null;
+  adminUrl: string;
+}) {
+  const kind = input.type === "bug" ? "Bug report" : "Suggestion";
+  const subject = `Totebird feedback: ${kind}`;
+  const from = input.fromEmail || "unknown user";
+  const page = input.pageUrl || "—";
+  const text = `${kind} from ${from}
+Page: ${page}
+
+${input.body}
+
+Triage: ${input.adminUrl}`;
+  const html = `
+  <div style="font-family:Source Sans 3,Helvetica,Arial,sans-serif;color:#2a3542;max-width:520px">
+    <p style="margin:0 0 12px"><strong>${escapeHtml(kind)}</strong> from ${escapeHtml(from)}</p>
+    <p style="margin:0 0 8px;font-size:13px;color:#4b5a6a">Page: ${escapeHtml(page)}</p>
+    <p style="margin:0 0 16px;white-space:pre-wrap">${escapeHtml(input.body)}</p>
+    <p style="margin:24px 0"><a href="${escapeAttr(input.adminUrl)}" style="background:#EE901F;color:#394554;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:700">Open feedback admin</a></p>
+    <p style="font-size:12px;color:#4b5a6a">Totebird founder triage</p>
+  </div>`;
+  return { subject, text, html };
+}
+
 function escapeHtml(s: string) {
   return s
     .replace(/&/g, "&amp;")

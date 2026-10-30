@@ -30,6 +30,19 @@ export const itemTypeEnum = pgEnum("item_type", [
   "text",
   "file",
 ]);
+export const feedbackTypeEnum = pgEnum("feedback_type", ["bug", "suggestion"]);
+export const feedbackStatusEnum = pgEnum("feedback_status", [
+  "new",
+  "triaged",
+  "planned",
+  "done",
+  "wontfix",
+]);
+export const feedbackPriorityEnum = pgEnum("feedback_priority", [
+  "low",
+  "normal",
+  "high",
+]);
 
 export const users = pgTable(
   "users",
@@ -197,6 +210,31 @@ export const events = pgTable(
   ],
 );
 
+export const feedback = pgTable(
+  "feedback",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").references(() => users.id),
+    type: feedbackTypeEnum("type").notNull(),
+    body: text("body").notNull(),
+    pageUrl: text("page_url"),
+    status: feedbackStatusEnum("status").notNull().default("new"),
+    priority: feedbackPriorityEnum("priority").notNull().default("normal"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("feedback_user_id_idx").on(t.userId),
+    index("feedback_status_idx").on(t.status),
+    index("feedback_type_idx").on(t.type),
+    index("feedback_created_at_idx").on(t.createdAt),
+  ],
+);
+
 export type User = typeof users.$inferSelect;
 export type Link = typeof links.$inferSelect;
 export type ChecklistItem = typeof checklistItems.$inferSelect;
@@ -204,3 +242,4 @@ export type FileRow = typeof files.$inferSelect;
 export type Invoice = typeof invoices.$inferSelect;
 export type InvoiceLineItem = typeof invoiceLineItems.$inferSelect;
 export type Event = typeof events.$inferSelect;
+export type Feedback = typeof feedback.$inferSelect;

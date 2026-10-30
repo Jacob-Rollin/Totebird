@@ -12,6 +12,16 @@ const COLORS: Record<string, string> = {
   free: "bg-slate-100 text-slate-700",
   solo: "bg-[color:var(--tb-orange-soft)] text-[color:var(--tb-slate)]",
   studio: "bg-[color:var(--tb-slate)] text-white",
+  bug: "bg-rose-50 text-rose-800",
+  suggestion: "bg-sky-50 text-sky-800",
+  new: "bg-[color:var(--tb-orange-soft)] text-[color:var(--tb-slate)]",
+  triaged: "bg-sky-50 text-sky-800",
+  planned: "bg-amber-50 text-amber-900",
+  done: "bg-emerald-50 text-emerald-800",
+  wontfix: "bg-slate-100 text-slate-500",
+  low: "bg-slate-100 text-slate-600",
+  normal: "bg-slate-100 text-slate-700",
+  high: "bg-[color:var(--tb-orange-soft)] text-[color:var(--tb-slate)]",
 };
 
 export function StatusPill({ status }: { status: string }) {
