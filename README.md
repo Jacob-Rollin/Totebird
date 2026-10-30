@@ -6,7 +6,7 @@ Passwordless client links for freelancers — **checklist / file-drop** and **in
 
 ## Deploy on Netlify (you already have a site named **totebird**)
 
-Practical steps only. Full click-path walkthrough for Neon/Clerk/R2/Resend/Stripe lives in the Project **platform setup guide** — use this README for repo/branch/env/cron.
+Practical steps only. Full click-path walkthrough for Neon/Clerk/B2/Resend/Stripe lives in the Project **platform setup guide** — use this README for repo/branch/env/cron.
 
 ### 1. Link the GitHub repo
 
@@ -28,7 +28,7 @@ In **Site configuration → Environment variables** (same names as [`.env.exampl
 | Done | `DATABASE_URL` | Neon on Netlify — hosted app uses it after deploy |
 | Now | `ADMIN_EMAIL` | Email you will Sign up with (founder `/admin`) |
 | Now | Clerk keys + path vars | See `.env.example` — then **one redeploy** |
-| Next | `R2_*`, `RESEND_*` | Uploads + email |
+| Next | `B2_*`, `RESEND_*` | Uploads + email |
 | Next | `STRIPE_*` + Price IDs | Webhook URL below |
 | Optional | `CRON_SECRET` | Locks down daily reminder cron |
 | Later (laptop only) | `npm run db:push` | Only if you run locally with `DATABASE_URL` in `.env.local` — **not** required for Netlify after Clerk |
@@ -78,7 +78,7 @@ If `CRON_SECRET` is unset, the route stays open (fine for local demo; set a secr
 | DB | **Neon** Postgres + Drizzle |
 | Auth (freelancers) | **Clerk** |
 | Client access | Signed tokens (`/c/[token]`, `/i/[token]`) — no client accounts |
-| Files | **Cloudflare R2** presigned uploads |
+| Files | **Backblaze B2** (shared bucket, S3-compatible presigned uploads) |
 | Email | **Resend** |
 | Payments | **Stripe** Checkout + Billing |
 
@@ -94,12 +94,12 @@ If `DATABASE_URL` or Clerk keys are missing (or `DEMO_MODE=true`), the app runs 
 | `/i/demo-invoice` | Line-item invoice + print view |
 | `/app` | Freelancer dashboard (progress %, limits, duplicate/archive) |
 | `/app/billing` | Plan UI; demo can switch Free/Solo/Studio without Stripe |
-| `/app/settings` | Onboarding checklist (Neon/Clerk/Stripe/R2/Resend/cron) |
+| `/app/settings` | Onboarding checklist (Neon/Clerk/Stripe/B2/Resend/cron) |
 | `/admin` | Founder admin + search filters |
 | `/privacy`, `/terms` | Legal stubs (marked as templates) |
 | `/api/cron/reminders` | Reminder pass (logs without Resend) |
 
-Missing integrations degrade gracefully (upload metadata without R2; pay/upgrade explain missing Stripe; reminders log without Resend).
+Missing integrations degrade gracefully (upload metadata without B2; pay/upgrade explain missing Stripe; reminders log without Resend).
 
 ## Quick start (local)
 
@@ -126,7 +126,7 @@ See [`.env.example`](./.env.example). Create Stripe Products/Prices for Solo ($1
 
 ## Features (keyless-complete)
 
-- **Plan limits** — Free = 3 active links + 250 MB messaging; enforced on create
+- **Plan limits** — Free = 3 active links + 250 MB storage (Solo 25 GB / Studio 100 GB); link create + upload caps enforced in app
 - **Billing** — `/app/billing` upgrade Checkout + Customer Portal (needs Stripe + Price IDs); demo plan switch without keys; Connect Express scaffold on Settings
 - **Checklist** — templates, item types, progress %, duplicate / archive
 - **Invoice** — line items, due presets, mark paid manually, print view
@@ -137,7 +137,7 @@ See [`.env.example`](./.env.example). Create Stripe Products/Prices for Solo ($1
 
 ## Neon / schema
 
-Linked via [`neon.ts`](./neon.ts) + `.neon` (gitignored) to project `shiny-rice-23336236` / branch `production`. Postgres only — no Neon Auth / Object Storage (app uses Clerk + R2). Driver: `@neondatabase/serverless` + Drizzle HTTP (Netlify-friendly).
+Linked via [`neon.ts`](./neon.ts) + `.neon` (gitignored) to project `shiny-rice-23336236` / branch `production`. Postgres only — no Neon Auth / Object Storage (app uses Clerk + B2). Driver: `@neondatabase/serverless` + Drizzle HTTP (Netlify-friendly).
 
 **Hosted:** put `DATABASE_URL` in Netlify env (already done if you followed setup). Redeploy after Clerk — that is enough for the live site. Netlify does **not** run `db:push`.
 
@@ -157,9 +157,9 @@ Migrations also in `src/db/migrations/` (`0000_init` + `0001_enrich` + `0002_str
 
 Sign-in/up → `/sign-in`, `/sign-up`; after auth → `/app`.
 
-### R2 / Resend / Stripe
+### B2 / Resend / Stripe
 
-Follow [`.env.example`](./.env.example) and the Project platform setup guide. Webhook: `POST /api/webhooks/stripe` (Billing + Connect `account.*`). Netlify deploy steps are at the top of this README.
+Follow [`.env.example`](./.env.example) and the Project B2 / platform setup guides. Shared B2 bucket; keys `users/{userId}/links/{linkId}/...`. Webhook: `POST /api/webhooks/stripe` (Billing + Connect `account.*`). Netlify deploy steps are at the top of this README.
 
 ## App routes
 

@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
-import { addFileRecord, getLinkByToken } from "@/lib/data";
-import { createPresignedUpload } from "@/lib/r2";
+import {
+  addFileRecord,
+  getLinkByToken,
+  getUserById,
+  storageUsedByUser,
+} from "@/lib/data";
+import { createPresignedUpload } from "@/lib/b2";
+import { canAcceptUpload, type Plan } from "@/lib/plans";
 
 export async function POST(
   req: Request,
@@ -30,10 +36,24 @@ export async function POST(
     return NextResponse.json({ error: "Invalid file" }, { status: 400 });
   }
 
+  const owner = await getUserById(link.userId);
+  const plan = (owner?.plan ?? "free") as Plan;
+  const usedBytes = await storageUsedByUser(link.userId);
+  if (!canAcceptUpload(plan, usedBytes, sizeBytes)) {
+    return NextResponse.json(
+      {
+        error:
+          "Storage limit reached for this plan. Upgrade or remove files to free space.",
+      },
+      { status: 403 },
+    );
+  }
+
   const presign = await createPresignedUpload({
     filename,
     contentType,
     sizeBytes,
+    userId: link.userId,
     linkId: link.id,
   });
   if (!presign.ok) {

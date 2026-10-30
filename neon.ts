@@ -3,7 +3,7 @@ import { defineConfig } from "@neon/config/v1";
 /**
  * Totebird Neon config — Postgres only.
  * Do NOT enable Managed Better Auth or Object Storage here:
- * the app uses Clerk + Cloudflare R2.
+ * the app uses Clerk + Backblaze B2.
  *
  * After `neon login`:
  *   neon env pull
@@ -12,7 +12,7 @@ import { defineConfig } from "@neon/config/v1";
  * Then: npm run db:push && npm run prove:db
  */
 export default defineConfig({
-  // Explicitly off — freelancers auth via Clerk; files via R2
+  // Explicitly off — freelancers auth via Clerk; files via B2
   auth: false,
 
   // Branch policy: per-branch tuning
