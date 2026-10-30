@@ -43,9 +43,21 @@ if (isDemoModeForced() || !hasClerkPublishable()) {
 
 export default middleware;
 
+/**
+ * Run Clerk edge middleware only where server auth() / session routes need it.
+ * Marketing (`/`, `/privacy`, `/terms`, `/changelog`), passwordless `/c` + `/i`,
+ * `/demo`, and public webhooks/cron/checklist APIs skip this — fewer edge
+ * invocations per guest hit. Client SessionLink still hydrates via ClerkProvider.
+ */
 export const config = {
   matcher: [
-    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
-    "/(api|trpc)(.*)",
+    "/app/:path*",
+    "/admin/:path*",
+    "/sign-in(.*)",
+    "/sign-up(.*)",
+    "/api/billing/:path*",
+    "/api/connect/:path*",
+    "/api/feedback/:path*",
+    "/api/remind",
   ],
 };

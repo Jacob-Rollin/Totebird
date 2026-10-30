@@ -67,6 +67,7 @@ If `CRON_SECRET` is unset, the route stays open (fine for local demo; set a secr
 - Production branch stays **`main`**
 - Local parity: `cp .env.example .env.local && npm i && npm run prove:env && npm run dev`
 - Note: Netlify demo-mode data is in-memory per instance (ephemeral) until Neon + Clerk are both live
+- **Credits:** each production deploy ≈ 15 Free credits. `netlify.toml` skips Deploy Previews / branch deploys and skips production rebuilds that only touch markdown/docs. Batch merges; avoid casual **Trigger deploy**. Turn Deploy Previews **off** in the Netlify UI as well.
 
 ---
 
