@@ -1,6 +1,10 @@
 # Totebird — Netlify + Next.js (App Router)
 # Site: totebird · repo Jacob-Rollin/Totebird · production branch: main
 #
+# Credits (Free plan, ~300/mo): production deploy ≈ 15 credits.
+# Deploy Previews / branch deploys are skipped below (noise + time; 0 credits
+# on current pricing but still unwanted). Prefer batching merges to main.
+#
 # Already likely set (do not re-paste secrets into chat):
 #   DATABASE_URL, NEXT_PUBLIC_APP_URL
 # Next in Netlify env (see README + Project you-only checklist):
@@ -11,6 +15,9 @@
   command = "npm run build"
   # @netlify/plugin-nextjs owns the publish output — leave as .next
   publish = ".next"
+  # Skip production rebuild when the diff is only docs/markdown/noise.
+  # Exit 0 = skip (save ~15 credits); exit 1 = build. See script header.
+  ignore = "node scripts/netlify-ignore-build.mjs"
 
 # Keep secrets scanning ON (do not set SECRETS_SCAN_ENABLED=false).
 # Omit only non-public server/edge bundles where Next/Netlify may embed runtime
@@ -29,13 +36,36 @@
 # (netlify/functions/scheduled-reminders.mts → schedule "0 14 * * *").
 # It POSTs /api/cron/reminders — set CRON_SECRET + RESEND_API_KEY to send for real.
 
-# Skip Deploy Previews and branch deploys to save Netlify build credits.
-# ignore exit 0 = skip this context; production (main) builds are unchanged.
+# Skip Deploy Previews and branch deploys (always).
+# ignore exit 0 = skip this context; production (main) uses [build].ignore above.
 [context.deploy-preview]
   ignore = "exit 0"
 
 [context.branch-deploy]
   ignore = "exit 0"
+
+# CDN cache for public marketing HTML — cuts repeat SSR/function work.
+# Auth, API, passwordless tokens, and app shell stay uncached here.
+[[headers]]
+  for = "/"
+  [headers.values]
+    Cache-Control = "public, s-maxage=3600, stale-while-revalidate=86400"
+
+[[headers]]
+  for = "/privacy"
+  [headers.values]
+    Cache-Control = "public, s-maxage=86400, stale-while-revalidate=604800"
+
+[[headers]]
+  for = "/terms"
+  [headers.values]
+    Cache-Control = "public, s-maxage=86400, stale-while-revalidate=604800"
+
+# Ready for /changelog (DB-backed when that route lands) — short CDN TTL only.
+[[headers]]
+  for = "/changelog"
+  [headers.values]
+    Cache-Control = "public, s-maxage=60, stale-while-revalidate=300"
 
 [dev]
   command = "npm run dev"

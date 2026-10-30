@@ -3,6 +3,11 @@ import { TotebirdLogo } from "@/components/logo";
 
 export const metadata = { title: "Privacy" };
 
+/** Fixed stub date — avoids `new Date()` opting the page into dynamic SSR. */
+const LAST_UPDATED = "2025-10-29";
+
+export const dynamic = "force-static";
+
 export default function PrivacyPage() {
   return (
     <div className="min-h-screen bg-[color:var(--tb-mist)]">
@@ -18,7 +23,7 @@ export default function PrivacyPage() {
         </p>
         <h1 className="font-display mt-6 text-4xl">Privacy Policy</h1>
         <p className="mt-4 text-[color:var(--tb-slate-soft)]">
-          Last updated: {new Date().toISOString().slice(0, 10)}
+          Last updated: {LAST_UPDATED}
         </p>
         <div className="mt-8 space-y-6 text-[color:var(--tb-slate)] leading-relaxed">
           <p>
