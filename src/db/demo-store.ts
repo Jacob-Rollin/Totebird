@@ -1,5 +1,6 @@
 import { newId, newToken } from "@/lib/ids";
 import type {
+  ChangelogEntry,
   ChecklistItem,
   Event,
   Feedback,
@@ -19,12 +20,13 @@ type Store = {
   invoiceLineItems: InvoiceLineItem[];
   events: Event[];
   feedback: Feedback[];
+  changelogEntries: ChangelogEntry[];
 };
 
-const g = globalThis as unknown as { __totebirdDemoV3?: Store };
+const g = globalThis as unknown as { __totebirdDemoV4?: Store };
 
 function store(): Store {
-  if (!g.__totebirdDemoV3) {
+  if (!g.__totebirdDemoV4) {
     const now = new Date();
     const demoUser: User = {
       id: "usr_demo",
@@ -75,7 +77,7 @@ function store(): Store {
 
     const invId = "inv_demo";
 
-    g.__totebirdDemoV3 = {
+    g.__totebirdDemoV4 = {
       users: [
         demoUser,
         {
@@ -98,6 +100,7 @@ function store(): Store {
       ],
       links: [checklistLink, invoiceLink],
       feedback: [],
+      changelogEntries: [],
       checklistItems: [
         {
           id: "cli_1",
@@ -219,7 +222,7 @@ function store(): Store {
       events: [],
     };
   }
-  return g.__totebirdDemoV3!;
+  return g.__totebirdDemoV4!;
 }
 
 export type CreateItemInput = {
@@ -591,6 +594,37 @@ export const demoStore = {
     const row = demoStore.getFeedbackById(id);
     if (!row) return null;
     Object.assign(row, patch, { updatedAt: new Date() });
+    return row;
+  },
+
+  deleteFeedback(id: string) {
+    const s = store();
+    const idx = s.feedback.findIndex((f) => f.id === id);
+    if (idx < 0) return false;
+    s.feedback.splice(idx, 1);
+    return true;
+  },
+
+  getChangelogEntries() {
+    return store().changelogEntries;
+  },
+
+  createChangelogEntry(input: {
+    title: string;
+    body?: string | null;
+    kind: ChangelogEntry["kind"];
+    sourceFeedbackId?: string | null;
+    publishedAt?: Date;
+  }): ChangelogEntry {
+    const row: ChangelogEntry = {
+      id: newId("chg"),
+      title: input.title,
+      body: input.body ?? null,
+      kind: input.kind,
+      publishedAt: input.publishedAt ?? new Date(),
+      sourceFeedbackId: input.sourceFeedbackId ?? null,
+    };
+    store().changelogEntries.push(row);
     return row;
   },
 

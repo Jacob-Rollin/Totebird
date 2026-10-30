@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin";
 import { requireSession } from "@/lib/auth";
-import { updateFeedback } from "@/lib/data";
+import { deleteFeedback, updateFeedback } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 
@@ -67,6 +67,36 @@ export async function PATCH(
     console.error("[totebird] updateFeedback failed", err);
     return NextResponse.json(
       { error: "Could not update feedback" },
+      { status: 503 },
+    );
+  }
+}
+
+/** Admin-only — delete feedback (noise / after publish). */
+export async function DELETE(
+  _req: Request,
+  ctx: { params: Promise<{ id: string }> },
+) {
+  const session = await requireSession();
+  if (!requireAdmin(session)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const { id } = await ctx.params;
+  if (!id) {
+    return NextResponse.json({ error: "Missing id" }, { status: 400 });
+  }
+
+  try {
+    const ok = await deleteFeedback(id);
+    if (!ok) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error("[totebird] deleteFeedback failed", err);
+    return NextResponse.json(
+      { error: "Could not delete feedback" },
       { status: 503 },
     );
   }

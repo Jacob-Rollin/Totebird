@@ -43,6 +43,11 @@ export const feedbackPriorityEnum = pgEnum("feedback_priority", [
   "normal",
   "high",
 ]);
+export const changelogKindEnum = pgEnum("changelog_kind", [
+  "feature",
+  "fix",
+  "improvement",
+]);
 
 export const users = pgTable(
   "users",
@@ -235,6 +240,24 @@ export const feedback = pgTable(
   ],
 );
 
+export const changelogEntries = pgTable(
+  "changelog_entries",
+  {
+    id: text("id").primaryKey(),
+    title: text("title").notNull(),
+    body: text("body"),
+    kind: changelogKindEnum("kind").notNull(),
+    publishedAt: timestamp("published_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    sourceFeedbackId: text("source_feedback_id"),
+  },
+  (t) => [
+    index("changelog_entries_published_at_idx").on(t.publishedAt),
+    index("changelog_entries_kind_idx").on(t.kind),
+  ],
+);
+
 export type User = typeof users.$inferSelect;
 export type Link = typeof links.$inferSelect;
 export type ChecklistItem = typeof checklistItems.$inferSelect;
@@ -243,3 +266,4 @@ export type Invoice = typeof invoices.$inferSelect;
 export type InvoiceLineItem = typeof invoiceLineItems.$inferSelect;
 export type Event = typeof events.$inferSelect;
 export type Feedback = typeof feedback.$inferSelect;
+export type ChangelogEntry = typeof changelogEntries.$inferSelect;

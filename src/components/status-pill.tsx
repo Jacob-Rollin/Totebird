@@ -22,6 +22,9 @@ const COLORS: Record<string, string> = {
   low: "bg-slate-100 text-slate-600",
   normal: "bg-slate-100 text-slate-700",
   high: "bg-[color:var(--tb-orange-soft)] text-[color:var(--tb-slate)]",
+  feature: "bg-[color:var(--tb-orange-soft)] text-[color:var(--tb-slate)]",
+  fix: "bg-emerald-50 text-emerald-800",
+  improvement: "bg-sky-50 text-sky-800",
 };
 
 export function StatusPill({ status }: { status: string }) {
