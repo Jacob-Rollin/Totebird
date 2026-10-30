@@ -56,7 +56,17 @@ export default async function AdminFeedbackPage({
     <div>
       <h1 className="font-display text-3xl">Feedback</h1>
       <p className="mt-1 text-sm text-[color:var(--tb-slate-soft)]">
-        Bugs and suggestions from freelancers. Newest first.
+        Bugs and suggestions from freelancers. Newest first. Mark{" "}
+        <span className="font-medium text-[color:var(--tb-ink)]">done</span>,
+        then Publish & remove to post on{" "}
+        <Link
+          href="/changelog"
+          className="text-[color:var(--tb-orange-deep)]"
+          target="_blank"
+        >
+          /changelog
+        </Link>
+        , or Delete noise.
       </p>
 
       <form className="mt-6 flex flex-wrap items-end gap-3" method="get">
@@ -144,6 +154,8 @@ export default async function AdminFeedbackPage({
                     id={r.id}
                     status={r.status}
                     priority={r.priority}
+                    type={r.type}
+                    body={r.body}
                   />
                 </td>
               </tr>

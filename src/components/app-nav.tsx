@@ -43,6 +43,12 @@ export function AppNav({
                 >
                   Settings
                 </Link>
+                <Link
+                  href="/changelog"
+                  className="hover:text-[color:var(--tb-ink)]"
+                >
+                  Changelog
+                </Link>
               </>
             ) : (
               <>

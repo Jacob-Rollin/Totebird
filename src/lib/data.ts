@@ -2,6 +2,7 @@ import { and, count, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { demoStore, type CreateItemInput } from "@/db/demo-store";
 import {
+  changelogEntries,
   checklistItems,
   feedback,
   files,
@@ -9,6 +10,7 @@ import {
   invoices,
   links,
   users,
+  type ChangelogEntry,
   type Feedback,
   type Invoice,
   type InvoiceLineItem,
@@ -924,12 +926,25 @@ export async function getLinkProgress(linkId: string) {
   );
 }
 
-/** Missing feedback table must not poison the whole DB into demo mode. */
-function isMissingFeedbackRelation(err: unknown) {
+/** Missing optional tables must not poison the whole DB into demo mode. */
+function isMissingRelation(err: unknown, table: string) {
   const e = err as { code?: string; message?: string };
-  if (e?.code === "42P01") return true;
+  if (e?.code === "42P01") {
+    const msg = e?.message || "";
+    return !msg || new RegExp(table, "i").test(msg);
+  }
   const msg = e?.message || "";
-  return /relation ["']?feedback["']? does not exist/i.test(msg);
+  return new RegExp(`relation ["']?${table}["']? does not exist`, "i").test(
+    msg,
+  );
+}
+
+function isMissingFeedbackRelation(err: unknown) {
+  return isMissingRelation(err, "feedback");
+}
+
+function isMissingChangelogRelation(err: unknown) {
+  return isMissingRelation(err, "changelog_entries");
 }
 
 async function feedbackDbTry<T>(
@@ -943,6 +958,25 @@ async function feedbackDbTry<T>(
     if (isMissingFeedbackRelation(err)) {
       console.warn(
         "[totebird] feedback table missing; soft-failing. Apply neon-feedback-table.sql in Neon SQL Editor.",
+      );
+      return fallback();
+    }
+    noteDbFailure(err);
+    return fallback();
+  }
+}
+
+async function changelogDbTry<T>(
+  run: () => Promise<T>,
+  fallback: () => T | Promise<T>,
+): Promise<T> {
+  if (shouldUseDemoStore()) return fallback();
+  try {
+    return await run();
+  } catch (err) {
+    if (isMissingChangelogRelation(err)) {
+      console.warn(
+        "[totebird] changelog_entries table missing; soft-failing. Apply neon-changelog-table.sql in Neon SQL Editor.",
       );
       return fallback();
     }
@@ -1076,4 +1110,132 @@ export async function updateFeedback(
   );
 }
 
-export type { Feedback, Invoice, InvoiceLineItem, Link, User };
+export async function getFeedbackById(id: string): Promise<Feedback | null> {
+  return feedbackDbTry(
+    async () =>
+      (await getDb().query.feedback.findFirst({
+        where: eq(feedback.id, id),
+      })) ?? null,
+    () => demoStore.getFeedbackById(id),
+  );
+}
+
+export async function deleteFeedback(id: string): Promise<boolean> {
+  return feedbackDbTry(
+    async () => {
+      const deleted = await getDb()
+        .delete(feedback)
+        .where(eq(feedback.id, id))
+        .returning({ id: feedback.id });
+      return deleted.length > 0;
+    },
+    () => demoStore.deleteFeedback(id),
+  );
+}
+
+export class ChangelogTableMissingError extends Error {
+  constructor() {
+    super("CHANGELOG_TABLE_MISSING");
+    this.name = "ChangelogTableMissingError";
+  }
+}
+
+export function defaultChangelogKindFromFeedback(
+  type: Feedback["type"],
+): ChangelogEntry["kind"] {
+  return type === "bug" ? "fix" : "feature";
+}
+
+/** Short title from feedback body for publish form defaults. */
+export function defaultChangelogTitleFromBody(body: string) {
+  const firstLine = body.trim().split(/\r?\n/)[0]?.trim() || "Update";
+  return firstLine.length > 100 ? `${firstLine.slice(0, 97)}…` : firstLine;
+}
+
+export async function listChangelogEntries(): Promise<ChangelogEntry[]> {
+  return changelogDbTry(
+    () =>
+      getDb().query.changelogEntries.findMany({
+        orderBy: [desc(changelogEntries.publishedAt)],
+      }),
+    () =>
+      demoStore
+        .getChangelogEntries()
+        .slice()
+        .sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime()),
+  );
+}
+
+export async function createChangelogEntry(input: {
+  title: string;
+  body?: string | null;
+  kind: ChangelogEntry["kind"];
+  sourceFeedbackId?: string | null;
+}): Promise<ChangelogEntry> {
+  const title = input.title.trim();
+  const body = input.body?.trim() || null;
+  const demoCreate = () =>
+    demoStore.createChangelogEntry({
+      title,
+      body,
+      kind: input.kind,
+      sourceFeedbackId: input.sourceFeedbackId,
+    });
+
+  if (shouldUseDemoStore()) return demoCreate();
+
+  try {
+    const [row] = await getDb()
+      .insert(changelogEntries)
+      .values({
+        id: newId("chg"),
+        title,
+        body,
+        kind: input.kind,
+        sourceFeedbackId: input.sourceFeedbackId ?? null,
+      })
+      .returning();
+    return row;
+  } catch (err) {
+    if (isMissingChangelogRelation(err)) {
+      console.warn(
+        "[totebird] changelog_entries missing; refuse create. Apply neon-changelog-table.sql.",
+      );
+      throw new ChangelogTableMissingError();
+    }
+    noteDbFailure(err);
+    return demoCreate();
+  }
+}
+
+/**
+ * Publish a done feedback item to the public changelog, then delete the triage row.
+ */
+export async function publishFeedbackToChangelog(
+  feedbackId: string,
+  input: {
+    title: string;
+    body?: string | null;
+    kind: ChangelogEntry["kind"];
+  },
+): Promise<{ entry: ChangelogEntry; deleted: boolean }> {
+  const row = await getFeedbackById(feedbackId);
+  if (!row) {
+    throw new Error("FEEDBACK_NOT_FOUND");
+  }
+  if (row.status !== "done") {
+    throw new Error("FEEDBACK_NOT_DONE");
+  }
+
+  const entry = await createChangelogEntry({
+    title: input.title,
+    body: input.body ?? row.body,
+    kind: input.kind,
+    sourceFeedbackId: row.id,
+  });
+
+  const deleted = await deleteFeedback(feedbackId);
+  return { entry, deleted };
+}
+
+export type { ChangelogEntry, Feedback, Invoice, InvoiceLineItem, Link, User };

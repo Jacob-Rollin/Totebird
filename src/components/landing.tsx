@@ -517,6 +517,9 @@ export function LandingPage({
                 <Link href="/demo">Demo</Link>
               </li>
               <li>
+                <Link href="/changelog">Changelog</Link>
+              </li>
+              <li>
                 <Link href="/app">Dashboard</Link>
               </li>
             </ul>
