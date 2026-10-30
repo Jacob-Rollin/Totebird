@@ -201,6 +201,7 @@ export function AppNav({
       <Link href="/changelog" className={menuItemClass} onClick={close}>
         Changelog
       </Link>
+      <FeedbackButton className={menuItemClass} />
       {user.isAdmin && (
         <Link
           href="/admin"
@@ -304,9 +305,6 @@ export function AppNav({
               {user.email}
             </p>
             {section === "app" ? mobileAppItems : mobileAdminItems}
-            {section === "app" && (
-              <FeedbackButton className={menuItemClass} />
-            )}
             <div className="my-1 border-t border-[color:var(--tb-line)]" />
             <LogOutControl
               className={`${menuItemClass} text-[color:var(--tb-ink)]`}
