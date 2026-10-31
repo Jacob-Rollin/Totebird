@@ -5,7 +5,11 @@ import { usePathname } from "next/navigation";
 
 type FeedbackType = "bug" | "suggestion";
 
-export function FeedbackButton() {
+export function FeedbackButton({
+  className,
+}: {
+  className?: string;
+} = {}) {
   const pathname = usePathname();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
@@ -79,7 +83,10 @@ export function FeedbackButton() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="font-medium text-[color:var(--tb-slate-soft)] hover:text-[color:var(--tb-ink)]"
+        className={
+          className ??
+          "font-medium text-[color:var(--tb-slate-soft)] hover:text-[color:var(--tb-ink)]"
+        }
       >
         Feedback
       </button>
