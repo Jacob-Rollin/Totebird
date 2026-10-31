@@ -134,7 +134,15 @@ export default async function SettingsPage({
           />
           <Row
             ok={connect.chargesEnabled}
-            title="Stripe Connect (Express)"
+            title={
+              connect.state === "ready"
+                ? "Stripe Connect — ready"
+                : connect.state === "pending"
+                  ? "Stripe Connect — pending"
+                  : connect.state === "not_connected"
+                    ? "Stripe Connect — not connected"
+                    : "Stripe Connect (Express)"
+            }
             hint={connect.message}
           />
           <Row
@@ -191,6 +199,8 @@ export default async function SettingsPage({
             connectEnabled={status.stripeConnect}
             chargesEnabled={connect.chargesEnabled}
             hasAccount={Boolean(connect.accountId)}
+            state={connect.state}
+            statusMessage={connect.message}
           />
         </div>
       </div>

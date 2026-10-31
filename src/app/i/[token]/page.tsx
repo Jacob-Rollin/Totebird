@@ -5,6 +5,7 @@ import { InvoiceClient } from "@/components/invoice-client";
 import { StatusPill } from "@/components/status-pill";
 import { getInvoiceBundle } from "@/lib/data";
 import { formatDate, formatMoney } from "@/lib/format";
+import { invoiceConnectGate } from "@/lib/stripe-connect";
 
 export default async function ClientInvoicePage({
   params,
@@ -24,6 +25,9 @@ export default async function ClientInvoicePage({
     link.status === "disabled" ||
     link.status === "archived";
   const paid = invoice.status === "paid" || q.paid === "1";
+  const gate = invoiceConnectGate(owner ?? {});
+  const payBlockedMessage =
+    !paid && !closed && !gate.ok ? gate.message : null;
 
   return (
     <div className="min-h-screen bg-[color:var(--tb-mist)]">
@@ -99,6 +103,7 @@ export default async function ClientInvoicePage({
               currency={invoice.currency}
               paid={paid}
               readOnly={closed}
+              payBlockedMessage={payBlockedMessage}
             />
           )}
           {closed && !paid && (

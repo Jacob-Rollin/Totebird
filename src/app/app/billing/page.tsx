@@ -99,6 +99,17 @@ export default async function BillingPage({
       <p className="mt-1 text-[color:var(--tb-slate-soft)]">
         Stripe remains the source of truth for subscriptions and payouts.
       </p>
+      <p className="mt-3 rounded-lg border border-[color:var(--tb-line)] bg-white px-4 py-3 text-sm text-[color:var(--tb-slate)]">
+        Subscriptions (Solo/Studio) pay Totebird. Client invoice payments go to
+        you via Stripe Connect — connect in{" "}
+        <Link
+          href="/app/settings"
+          className="font-semibold text-[color:var(--tb-orange-deep)]"
+        >
+          Settings
+        </Link>
+        . Free plan invoices include a 1% platform fee; Solo/Studio are 0%.
+      </p>
 
       {q.upgraded === "1" && (
         <p className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">

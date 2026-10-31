@@ -1,6 +1,10 @@
-import { appUrl, platformFeeBps } from "@/lib/env";
+import { appUrl, isStripeConnectEnabled, platformFeeBps } from "@/lib/env";
 import { getStripe } from "@/lib/stripe-client";
 import type { Plan } from "@/lib/plans";
+import {
+  CONNECT_REQUIRED_MESSAGE,
+  isConnectReadyForInvoices,
+} from "@/lib/stripe-connect";
 import {
   applyPaidPlanToUser,
   cancelOtherTotebirdSubscriptions,
@@ -34,8 +38,10 @@ export async function createInvoiceCheckout(input: {
   clientEmail?: string | null;
   linkId: string;
   lineItems?: { description: string; quantity: number; unitAmountCents: number }[];
-  /** When Connect Direct is live: Express acct_… with charges_enabled */
+  /** Express acct_… — required when Connect is enabled */
   connectAccountId?: string | null;
+  /** Must be true when Connect is enabled (charges_enabled on the account) */
+  connectChargesEnabled?: boolean | null;
   ownerPlan?: Plan;
 }) {
   const stripe = getStripe();
@@ -47,6 +53,23 @@ export async function createInvoiceCheckout(input: {
       sessionId: null as string | null,
       message:
         "Stripe is not configured. Set STRIPE_SECRET_KEY to enable Checkout.",
+    };
+  }
+
+  const connectOn = isStripeConnectEnabled();
+  const connectReady = isConnectReadyForInvoices({
+    stripeConnectAccountId: input.connectAccountId,
+    stripeConnectChargesEnabled: input.connectChargesEnabled,
+  });
+
+  // Hard block: never charge the platform when Connect is required.
+  if (connectOn && !connectReady) {
+    return {
+      ok: false as const,
+      demo: false as const,
+      url: null as string | null,
+      sessionId: null as string | null,
+      message: CONNECT_REQUIRED_MESSAGE,
     };
   }
 
@@ -74,10 +97,7 @@ export async function createInvoiceCheckout(input: {
           },
         ];
 
-  const useConnect =
-    Boolean(input.connectAccountId) &&
-    process.env.STRIPE_CONNECT_ENABLED === "true";
-
+  const useConnect = connectReady;
   const fee = useConnect
     ? applicationFeeCents(input.amountCents, input.ownerPlan ?? "free")
     : 0;
@@ -93,13 +113,20 @@ export async function createInvoiceCheckout(input: {
       linkId: input.linkId,
       token: input.token,
       connect: useConnect ? "direct" : "platform",
+      applicationFeeCents: String(fee),
+      ownerPlan: input.ownerPlan ?? "free",
     },
   };
 
-  // Direct charge: optional application fee on Free (Solo/Studio = 0)
-  if (useConnect && fee > 0) {
+  // Direct charge on connected account; Free plan takes platform application fee.
+  if (useConnect) {
     sessionParams.payment_intent_data = {
-      application_fee_amount: fee,
+      ...(fee > 0 ? { application_fee_amount: fee } : {}),
+      metadata: {
+        linkId: input.linkId,
+        token: input.token,
+        applicationFeeCents: String(fee),
+      },
     };
   }
 
@@ -110,8 +137,6 @@ export async function createInvoiceCheckout(input: {
       }
     : { idempotencyKey: `inv_checkout_${input.linkId}_${input.amountCents}` };
 
-  // TODO(Phase 3): when STRIPE_CONNECT_ENABLED and freelancer lacks charges_enabled,
-  // prefer blocking pay with "Connect your Stripe" instead of silent platform Checkout.
   const session = await stripe.checkout.sessions.create(
     sessionParams,
     requestOptions,
