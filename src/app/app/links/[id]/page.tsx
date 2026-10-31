@@ -208,8 +208,12 @@ export default async function LinkDetailPage({
                   >
                     {item.label}
                   </span>
-                  <span className="ml-2 text-xs uppercase tracking-wide text-[color:var(--tb-slate-soft)]">
-                    {item.itemType}
+                  <span className="ml-2 text-xs text-[color:var(--tb-slate-soft)]">
+                    {item.itemType === "file"
+                      ? "File upload"
+                      : item.itemType === "text"
+                        ? "Text answer"
+                        : "Checkbox"}
                     {!item.required ? " · optional" : ""}
                   </span>
                   {item.answerText && (
