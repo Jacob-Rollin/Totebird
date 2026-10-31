@@ -18,6 +18,8 @@ B2_APPLICATION_KEY_ID = "<your b2 application key id>"
 # Host only — no https:// — e.g. s3.us-west-004.backblazeb2.com
 B2_ENDPOINT = "<s3.REGION.backblazeb2.com>"
 # Exact bucket name so https://files.totebird.com/<object-key> maps 1:1
-BUCKET_NAME = "totebird-uploads"
+# Placeholder only — set the real name in Cloudflare dashboard / wrangler vars
+# (or Netlify B2_BUCKET). Do not commit the production bucket name.
+BUCKET_NAME = "your-b2-bucket-name"
 ALLOW_LIST_BUCKET = "false"
 RCLONE_DOWNLOAD = "false"
