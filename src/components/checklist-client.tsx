@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { ProgressBar } from "@/components/progress-bar";
+import { FileDropzone } from "@/components/file-dropzone";
 
 type Item = {
   id: string;
@@ -205,7 +206,7 @@ export function ChecklistClient({
 
             {item.itemType === "file" && (
               <div>
-                <p className="font-medium">
+                <p className="font-medium" id={`file-label-${item.id}`}>
                   {item.label}
                   {item.done && (
                     <span className="ml-2 text-xs font-normal text-emerald-700">
@@ -219,14 +220,15 @@ export function ChecklistClient({
                   )}
                 </p>
                 {!readOnly && (
-                  <input
-                    type="file"
-                    className="mt-3 block w-full text-sm"
+                  <FileDropzone
+                    inputId={`file-input-${item.id}`}
                     disabled={uploading === item.id}
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) void onUpload(f, item.id);
-                    }}
+                    label={
+                      uploading === item.id
+                        ? "Uploading…"
+                        : "Click or drop file here"
+                    }
+                    onFile={(f) => void onUpload(f, item.id)}
                   />
                 )}
               </div>
@@ -236,19 +238,22 @@ export function ChecklistClient({
       </ul>
 
       <div className="tb-panel">
-        <h2 className="font-semibold">Extra file drop</h2>
+        <h2 className="font-semibold" id="extra-file-heading">
+          Extra file drop
+        </h2>
         <p className="mt-1 text-sm text-[color:var(--tb-slate-soft)]">
-          Attach anything else (max ~10 MB each).
+          Attach anything else the checklist didn’t ask for.
         </p>
         {!readOnly && (
-          <input
-            type="file"
-            className="mt-4 block w-full text-sm"
+          <FileDropzone
+            inputId="extra-file-input"
             disabled={uploading === "general"}
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) void onUpload(f);
-            }}
+            label={
+              uploading === "general"
+                ? "Uploading…"
+                : "Click or drop file here"
+            }
+            onFile={(f) => void onUpload(f)}
           />
         )}
         {message && (

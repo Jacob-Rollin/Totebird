@@ -61,10 +61,10 @@ export type DuePreset = {
 };
 
 export const DUE_PRESETS: DuePreset[] = [
-  { key: "upon-receipt", label: "Upon receipt", daysFromNow: 0 },
-  { key: "net-7", label: "Net 7", daysFromNow: 7 },
-  { key: "net-14", label: "Net 14", daysFromNow: 14 },
-  { key: "net-30", label: "Net 30", daysFromNow: 30 },
+  { key: "upon-receipt", label: "Due on receipt", daysFromNow: 0 },
+  { key: "net-7", label: "Due in 7 days", daysFromNow: 7 },
+  { key: "net-14", label: "Due in 14 days", daysFromNow: 14 },
+  { key: "net-30", label: "Due in 30 days", daysFromNow: 30 },
   { key: "custom", label: "Custom date", daysFromNow: null },
 ];
 

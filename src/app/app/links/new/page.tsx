@@ -7,52 +7,10 @@ import {
   createInvoiceLink,
 } from "@/lib/data";
 import { CreateLinkForm } from "@/components/create-link-form";
-import { getTemplate, dueDateFromPreset } from "@/lib/templates";
-import type { CreateItemInput } from "@/db/demo-store";
+import { dueDateFromPreset } from "@/lib/templates";
+import { parseItems, parseItemsJson } from "@/lib/checklist-items";
 
 export const metadata = { title: "New link" };
-
-function parseItems(raw: string, templateKey: string): CreateItemInput[] {
-  const template = templateKey ? getTemplate(templateKey) : null;
-  if (template && !raw.trim()) {
-    return template.items.map((i) => ({
-      label: i.label,
-      itemType: i.itemType,
-      required: i.required ?? true,
-    }));
-  }
-
-  return raw
-    .split("\n")
-    .map((l) => l.trim())
-    .filter(Boolean)
-    .map((line) => {
-      let itemType: CreateItemInput["itemType"] = "checkbox";
-      let required = true;
-      let label = line;
-      if (/\(optional\)/i.test(label)) {
-        required = false;
-        label = label.replace(/\(optional\)/i, "").trim();
-      }
-      const typeMatch = label.match(/\[(text|file|checkbox)\]/i);
-      if (typeMatch) {
-        itemType = typeMatch[1].toLowerCase() as CreateItemInput["itemType"];
-        label = label.replace(typeMatch[0], "").trim();
-      }
-      // Prefer template metadata when labels match
-      const fromTemplate = template?.items.find(
-        (i) => i.label.toLowerCase() === label.toLowerCase(),
-      );
-      if (fromTemplate) {
-        return {
-          label: fromTemplate.label,
-          itemType: fromTemplate.itemType,
-          required: fromTemplate.required ?? true,
-        };
-      }
-      return { label, itemType, required };
-    });
-}
 
 export default async function NewLinkPage({
   searchParams,
@@ -122,8 +80,11 @@ export default async function NewLinkPage({
     }
 
     const templateKey = String(formData.get("templateKey") || "") || null;
-    const itemsRaw = String(formData.get("items") || "");
-    const items = parseItems(itemsRaw, templateKey || "");
+    const fromJson = parseItemsJson(String(formData.get("itemsJson") || ""));
+    const items =
+      fromJson && fromJson.length
+        ? fromJson
+        : parseItems(String(formData.get("items") || ""), templateKey || "");
     if (!items.length) redirect("/app/links/new?type=checklist&error=items");
 
     const link = await createChecklistLink({
