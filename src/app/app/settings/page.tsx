@@ -142,8 +142,8 @@ export default async function SettingsPage({
             title="Backblaze B2 uploads"
             hint={
               status.b2
-                ? "Presigned uploads to the shared B2 bucket are enabled."
-                : "Add B2_KEY_ID, B2_APPLICATION_KEY, B2_BUCKET, and B2_ENDPOINT for real file drops."
+                ? "Presigned uploads to the shared B2 bucket are enabled. B2_ENDPOINT must be https://s3.REGION.backblazeb2.com (not Worker host-only)."
+                : "Add B2_KEY_ID, B2_APPLICATION_KEY, B2_BUCKET, and B2_ENDPOINT (full https:// URL) for real file drops."
             }
           />
           <Row
