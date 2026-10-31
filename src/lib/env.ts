@@ -23,14 +23,22 @@ export function hasClerk() {
   );
 }
 
+/** Required Netlify / runtime names for shared B2 uploads (values never returned). */
+export const B2_REQUIRED_ENV = [
+  "B2_KEY_ID",
+  "B2_APPLICATION_KEY",
+  "B2_BUCKET",
+  "B2_ENDPOINT",
+] as const;
+
+/** Names of required B2 env vars that are unset/empty — safe to show (no secrets). */
+export function missingB2EnvNames(): string[] {
+  return B2_REQUIRED_ENV.filter((name) => !process.env[name]);
+}
+
 /** Shared Backblaze B2 bucket (S3-compatible). Soft-fails when unset. */
 export function hasB2() {
-  return Boolean(
-    process.env.B2_KEY_ID &&
-      process.env.B2_APPLICATION_KEY &&
-      process.env.B2_BUCKET &&
-      process.env.B2_ENDPOINT,
-  );
+  return missingB2EnvNames().length === 0;
 }
 
 /** @deprecated Prefer hasB2() — R2 is no longer used. */

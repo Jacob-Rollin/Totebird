@@ -44,7 +44,7 @@ https://YOUR-SITE.netlify.app/api/webhooks/stripe
 ```
 
 Events: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`, plus Connect `account.updated` / `account.application.deauthorized` when using Express. Enable **Listen to events on Connected accounts** once Connect invoices go live.  
-Paste signing secret → `STRIPE_WEBHOOK_SECRET`. Optional: `STRIPE_CONNECT_ENABLED=true` + `STRIPE_PLATFORM_FEE_BPS=100` after Dashboard Connect setup.
+Paste signing secret → `STRIPE_WEBHOOK_SECRET`. For freelancer invoice payouts: enable Connect (Express) in Dashboard, set `STRIPE_CONNECT_ENABLED=true` + `STRIPE_PLATFORM_FEE_BPS=100` (Free = 1% application fee; Solo/Studio = 0). When the flag is on, creating/paying invoices requires a connected account with `charges_enabled`.
 
 ### 4. Scheduled reminders (Netlify)
 
@@ -119,7 +119,7 @@ npm run smoke
 
 ## Environment variables
 
-See [`.env.example`](./.env.example). Create Stripe Products/Prices for Solo ($19 / $190) and Studio ($39 / $390), paste Price IDs, enable **Customer Portal**. Connect Express stays off until `STRIPE_CONNECT_ENABLED=true`.
+See [`.env.example`](./.env.example). Create Stripe Products/Prices for Solo ($19 / $190) and Studio ($39 / $390), paste Price IDs, enable **Customer Portal**. Set `STRIPE_CONNECT_ENABLED=true` so client invoice Checkout uses Direct charges on the freelancer’s Express account (blocked until Connect is ready).
 
 ### Founder admin
 

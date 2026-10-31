@@ -4,6 +4,10 @@ import { useMemo, useState } from "react";
 import { ProgressBar } from "@/components/progress-bar";
 import { FileDropzone } from "@/components/file-dropzone";
 import {
+  checklistProgress,
+  checklistProgressLabel,
+} from "@/lib/plans";
+import {
   readResponseJson,
   uploadStartErrorMessage,
 } from "@/lib/read-response-json";
@@ -24,6 +28,29 @@ type FileRow = {
   checklistItemId?: string | null;
 };
 
+function formatSize(sizeBytes: number) {
+  return `${Math.round(sizeBytes / 1024)} KB`;
+}
+
+function UploadedFileList({ rows }: { rows: FileRow[] }) {
+  if (rows.length === 0) return null;
+  return (
+    <ul className="mt-3 space-y-2 text-sm">
+      {rows.map((f) => (
+        <li
+          key={f.id}
+          className="flex justify-between gap-2 break-all sm:break-normal"
+        >
+          <span className="min-w-0 sm:truncate">{f.filename}</span>
+          <span className="shrink-0 text-[color:var(--tb-slate-soft)]">
+            {formatSize(f.sizeBytes)}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function ChecklistClient({
   token,
   initialItems,
@@ -38,24 +65,35 @@ export function ChecklistClient({
   const [items, setItems] = useState(initialItems);
   const [files, setFiles] = useState(initialFiles);
   const [uploading, setUploading] = useState<string | null>(null);
+  const [statusSlot, setStatusSlot] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const progress = useMemo(() => {
-    const total = items.length;
-    const done = items.filter((i) => i.done).length;
-    return {
-      done,
-      total,
-      percent: total ? Math.round((done / total) * 100) : 0,
-    };
-  }, [items]);
+  const progress = useMemo(() => checklistProgress(items), [items]);
+
+  const filesByItemId = useMemo(() => {
+    const map = new Map<string, FileRow[]>();
+    for (const file of files) {
+      const key = file.checklistItemId;
+      if (!key) continue;
+      const list = map.get(key);
+      if (list) list.push(file);
+      else map.set(key, [file]);
+    }
+    return map;
+  }, [files]);
+
+  const extraFiles = useMemo(
+    () => files.filter((f) => !f.checklistItemId),
+    [files],
+  );
 
   async function patchItem(
     itemId: string,
     body: { done?: boolean; answerText?: string },
   ) {
     setError(null);
+    setStatusSlot(null);
     const res = await fetch(`/api/checklist/${token}/items`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -95,7 +133,9 @@ export function ChecklistClient({
 
   async function onUpload(file: File, checklistItemId?: string) {
     if (readOnly) return;
-    setUploading(checklistItemId || "general");
+    const slotKey = checklistItemId || "general";
+    setUploading(slotKey);
+    setStatusSlot(slotKey);
     setMessage(null);
     setError(null);
     try {
@@ -123,14 +163,23 @@ export function ChecklistClient({
       }
 
       if (data.uploadUrl) {
-        const put = await fetch(data.uploadUrl, {
-          method: "PUT",
-          headers: { "Content-Type": contentType },
-          body: file,
-        });
+        let put: Response;
+        try {
+          put = await fetch(data.uploadUrl, {
+            method: "PUT",
+            headers: { "Content-Type": contentType },
+            body: file,
+          });
+        } catch {
+          // Cross-origin B2 PUT without bucket CORS → TypeError
+          // (Firefox: NetworkError…; Chrome: Failed to fetch).
+          throw new Error(
+            "Couldn’t reach storage. Check B2 CORS for your domain (allow s3_put from www.totebird.com / totebird.com).",
+          );
+        }
         if (!put.ok) {
           throw new Error(
-            "Couldn’t finish upload to storage. Check the file and try again.",
+            `Couldn’t finish upload to storage (HTTP ${put.status}). Check B2 CORS and that Content-Type matches the signed URL.`,
           );
         }
       }
@@ -169,18 +218,30 @@ export function ChecklistClient({
     }
   }
 
+  function slotFeedback(slotKey: string) {
+    if (statusSlot !== slotKey) return null;
+    return (
+      <>
+        {error && (
+          <p className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
+            {error}
+          </p>
+        )}
+        {message && (
+          <p className="mt-3 text-sm text-[color:var(--tb-slate-soft)]">
+            {message}
+          </p>
+        )}
+      </>
+    );
+  }
+
   return (
     <div className="space-y-8">
       <ProgressBar
         percent={progress.percent}
-        label={`${progress.done} of ${progress.total} complete`}
+        label={checklistProgressLabel(progress)}
       />
-
-      {error && (
-        <p className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
-          {error}
-        </p>
-      )}
 
       <ul className="space-y-3">
         {items.map((item) => (
@@ -263,6 +324,8 @@ export function ChecklistClient({
                     onFile={(f) => void onUpload(f, item.id)}
                   />
                 )}
+                <UploadedFileList rows={filesByItemId.get(item.id) || []} />
+                {slotFeedback(item.id)}
               </div>
             )}
           </li>
@@ -288,21 +351,8 @@ export function ChecklistClient({
             onFile={(f) => void onUpload(f)}
           />
         )}
-        {message && (
-          <p className="mt-3 text-sm text-[color:var(--tb-slate-soft)]">{message}</p>
-        )}
-        {files.length > 0 && (
-          <ul className="mt-4 space-y-2 text-sm">
-            {files.map((f) => (
-              <li key={f.id} className="flex justify-between gap-2">
-                <span>{f.filename}</span>
-                <span className="text-[color:var(--tb-slate-soft)]">
-                  {Math.round(f.sizeBytes / 1024)} KB
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
+        <UploadedFileList rows={extraFiles} />
+        {slotFeedback("general")}
       </div>
     </div>
   );

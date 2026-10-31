@@ -80,6 +80,9 @@ export const users = pgTable(
   (t) => [
     uniqueIndex("users_clerk_id_idx").on(t.clerkId),
     uniqueIndex("users_email_idx").on(t.email),
+    uniqueIndex("users_stripe_connect_account_id_idx").on(
+      t.stripeConnectAccountId,
+    ),
   ],
 );
 

@@ -19,6 +19,10 @@ import {
 } from "@/db/schema";
 import { hasDatabase, isDemoMode } from "@/lib/env";
 import { newId, newToken } from "@/lib/ids";
+import {
+  checklistProgress,
+  checklistRequiredComplete,
+} from "@/lib/plans";
 
 /** Seeded /demo link tokens — always served from demo-store, even in live mode. */
 const SEEDED_DEMO_TOKENS = new Set(["demo-checklist", "demo-invoice"]);
@@ -168,6 +172,32 @@ export async function getUserByStripeCustomerId(customerId: string) {
     noteDbFailure(err);
     return (
       demoStore.getUsers().find((u) => u.stripeCustomerId === customerId) ?? null
+    );
+  }
+}
+
+/** Resolve freelancer by Stripe Connect Express account id (acct_…). */
+export async function getUserByConnectAccountId(accountId: string) {
+  if (!accountId) return null;
+  if (!isLiveBillingDb()) {
+    return (
+      demoStore
+        .getUsers()
+        .find((u) => u.stripeConnectAccountId === accountId) ?? null
+    );
+  }
+  try {
+    return (
+      (await getDb().query.users.findFirst({
+        where: eq(users.stripeConnectAccountId, accountId),
+      })) ?? null
+    );
+  } catch (err) {
+    noteDbFailure(err);
+    return (
+      demoStore
+        .getUsers()
+        .find((u) => u.stripeConnectAccountId === accountId) ?? null
     );
   }
 }
@@ -653,7 +683,8 @@ export async function toggleChecklistItem(
 async function syncChecklistCompletion(linkId: string) {
   if (demoForLink(linkId)) {
     const items = demoStore.getItemsForLink(linkId);
-    if (items.length && items.every((i) => i.done)) {
+    // Optional empty items must not block "completed"
+    if (checklistRequiredComplete(items)) {
       demoStore.updateLinkStatus(linkId, "completed");
     } else {
       const link = demoStore.getLinkById(linkId);
@@ -666,7 +697,7 @@ async function syncChecklistCompletion(linkId: string) {
   const remaining = await getDb().query.checklistItems.findMany({
     where: eq(checklistItems.linkId, linkId),
   });
-  if (remaining.length && remaining.every((i) => i.done)) {
+  if (checklistRequiredComplete(remaining)) {
     await updateLinkStatus(linkId, "completed");
   } else {
     const link = await getLinkById(linkId);
@@ -674,6 +705,21 @@ async function syncChecklistCompletion(linkId: string) {
       await updateLinkStatus(linkId, "active");
     }
   }
+}
+
+export async function getFileById(id: string) {
+  if (shouldUseDemoStore()) {
+    return demoStore.getFileById(id) ?? null;
+  }
+  return dbTry(
+    async () => {
+      const row = await getDb().query.files.findFirst({
+        where: eq(files.id, id),
+      });
+      return row ?? null;
+    },
+    () => demoStore.getFileById(id) ?? null,
+  );
 }
 
 export async function addFileRecord(input: {
@@ -903,26 +949,9 @@ export async function getLinkProgress(linkId: string) {
       const items = await getDb().query.checklistItems.findMany({
         where: eq(checklistItems.linkId, linkId),
       });
-      const done = items.filter((i) => i.done).length;
-      return {
-        done,
-        total: items.length,
-        percent: items.length
-          ? Math.round((done / items.length) * 100)
-          : 0,
-      };
+      return checklistProgress(items);
     },
-    () => {
-      const items = demoStore.getItemsForLink(linkId);
-      const done = items.filter((i) => i.done).length;
-      return {
-        done,
-        total: items.length,
-        percent: items.length
-          ? Math.round((done / items.length) * 100)
-          : 0,
-      };
-    },
+    () => checklistProgress(demoStore.getItemsForLink(linkId)),
   );
 }
 

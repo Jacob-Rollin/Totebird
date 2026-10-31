@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getInvoiceBundle, setCheckoutSession } from "@/lib/data";
-import { isStripeConnectEnabled } from "@/lib/env";
 import { createInvoiceCheckout } from "@/lib/stripe";
+import { invoiceConnectGate } from "@/lib/stripe-connect";
 
 export async function POST(
   _req: Request,
@@ -24,10 +24,18 @@ export async function POST(
     return NextResponse.json({ error: "Already paid" }, { status: 400 });
   }
 
-  const connectReady =
-    isStripeConnectEnabled() &&
-    Boolean(owner?.stripeConnectAccountId) &&
-    Boolean(owner?.stripeConnectChargesEnabled);
+  const gate = invoiceConnectGate(owner ?? {});
+  if (!gate.ok) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: gate.message,
+        message: gate.message,
+        connect: "blocked",
+      },
+      { status: 403 },
+    );
+  }
 
   const checkout = await createInvoiceCheckout({
     amountCents: invoice.amountCents,
@@ -42,7 +50,8 @@ export async function POST(
       quantity: li.quantity,
       unitAmountCents: li.unitAmountCents,
     })),
-    connectAccountId: connectReady ? owner!.stripeConnectAccountId : null,
+    connectAccountId: gate.connectAccountId,
+    connectChargesEnabled: gate.connectReady,
     ownerPlan: owner?.plan ?? "free",
   });
 
@@ -55,6 +64,6 @@ export async function POST(
     url: checkout.url,
     message: checkout.message,
     demo: checkout.demo,
-    connect: connectReady ? "direct" : "platform",
+    connect: gate.connectReady ? "direct" : "platform",
   });
 }

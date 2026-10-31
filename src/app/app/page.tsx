@@ -15,6 +15,7 @@ import { appUrl, integrationStatus } from "@/lib/env";
 import { formatDate } from "@/lib/format";
 import {
   canCreateLink,
+  checklistProgressLabel,
   PLAN_LIMITS,
   storageUsageMessage,
 } from "@/lib/plans";
@@ -162,7 +163,7 @@ export default async function DashboardPage({
                       {link.type === "checklist" && progress ? (
                         <ProgressBar
                           percent={progress.percent}
-                          label={`${progress.done}/${progress.total}`}
+                          label={checklistProgressLabel(progress)}
                         />
                       ) : (
                         <span className="text-[color:var(--tb-slate-soft)]">—</span>
