@@ -27,6 +27,12 @@ function client() {
     },
     // B2 S3-compatible API expects path-style URLs.
     forcePathStyle: true,
+    // AWS SDK v3 defaults (WHEN_SUPPORTED) inject flexible checksums into
+    // PutObject presigns (x-amz-checksum-crc32, x-amz-sdk-checksum-algorithm).
+    // checklist-client only sends Content-Type on the browser PUT, so those
+    // query params break B2 uploads. Only checksum when the API requires it.
+    requestChecksumCalculation: "WHEN_REQUIRED",
+    responseChecksumValidation: "WHEN_REQUIRED",
   });
 }
 
@@ -73,14 +79,20 @@ export async function createPresignedUpload(input: {
 
   try {
     const s3 = client()!;
+    // Match checklist-client PUT: Content-Type only (no checksum headers).
     // Do not sign ContentLength — browsers set it on PUT; mismatched signed
     // length is a common cause of opaque upload failures with special filenames.
+    // Do not set ChecksumAlgorithm — that reintroduces x-amz-checksum-* on the URL.
     const command = new PutObjectCommand({
       Bucket: process.env.B2_BUCKET!,
       Key: key,
       ContentType: input.contentType,
     });
-    const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 60 * 10 });
+    const uploadUrl = await getSignedUrl(s3, command, {
+      expiresIn: 60 * 10,
+      // Ensure Content-Type stays a signed header (client always sends it).
+      signableHeaders: new Set(["content-type"]),
+    });
 
     // Optional CDN base (Cloudflare Worker at files.totebird.com — Phase 5).
     // Until the Worker exists, clients still upload via the signed B2 URL.
