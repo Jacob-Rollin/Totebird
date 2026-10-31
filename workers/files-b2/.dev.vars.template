@@ -1,0 +1,2 @@
+# Copy to .dev.vars for `npx wrangler dev` (never commit .dev.vars)
+B2_APPLICATION_KEY = "<your b2 application key>"
