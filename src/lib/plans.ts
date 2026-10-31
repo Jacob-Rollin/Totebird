@@ -97,15 +97,42 @@ export function storageUsageMessage(usedBytes: number, plan: Plan) {
   return `${formatStorage(usedBytes)} of ${formatStorage(cap)} used`;
 }
 
+/**
+ * Progress is driven by required items only.
+ * Optional items never block 100% / checklist complete when empty.
+ * `required` null/undefined is treated as required (safe default).
+ */
 export function checklistProgress(
   items: { done: boolean; required?: boolean | null }[],
 ) {
   if (!items.length) return { done: 0, total: 0, percent: 0 };
-  const total = items.length;
-  const done = items.filter((i) => i.done).length;
+  const required = items.filter((i) => i.required !== false);
+  if (!required.length) {
+    // All optional → complete for progress / status purposes
+    return { done: 0, total: 0, percent: 100 };
+  }
+  const done = required.filter((i) => i.done).length;
   return {
     done,
-    total,
-    percent: Math.round((done / total) * 100),
+    total: required.length,
+    percent: Math.round((done / required.length) * 100),
   };
+}
+
+export function checklistRequiredComplete(
+  items: { done: boolean; required?: boolean | null }[],
+) {
+  if (!items.length) return false;
+  return checklistProgress(items).percent >= 100;
+}
+
+export function checklistProgressLabel(progress: {
+  done: number;
+  total: number;
+  percent: number;
+}) {
+  if (progress.total === 0) {
+    return progress.percent >= 100 ? "Complete" : "No items";
+  }
+  return `${progress.done} of ${progress.total} required`;
 }
