@@ -2,6 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { ProgressBar } from "@/components/progress-bar";
+import { FileDropzone } from "@/components/file-dropzone";
+import {
+  readResponseJson,
+  uploadStartErrorMessage,
+} from "@/lib/read-response-json";
 
 type Item = {
   id: string;
@@ -57,8 +62,12 @@ export function ChecklistClient({
       body: JSON.stringify({ itemId, ...body }),
     });
     if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      setError(data.error || "Could not save");
+      const { data } = await readResponseJson<{ error?: string }>(res);
+      setError(
+        typeof data.error === "string" && data.error
+          ? data.error
+          : "Could not save",
+      );
       return false;
     }
     return true;
@@ -90,32 +99,46 @@ export function ChecklistClient({
     setMessage(null);
     setError(null);
     try {
+      const contentType = file.type || "application/octet-stream";
       const res = await fetch(`/api/checklist/${token}/upload`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          // Spaces/parens are fine in JSON; server sanitizes the storage key.
           filename: file.name,
-          contentType: file.type || "application/octet-stream",
+          contentType,
           sizeBytes: file.size,
           checklistItemId: checklistItemId || null,
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Upload failed");
+      const { data } = await readResponseJson<{
+        error?: string;
+        fileId?: string;
+        uploadUrl?: string | null;
+        message?: string | null;
+      }>(res);
+
+      if (!res.ok || !data.fileId) {
+        throw new Error(uploadStartErrorMessage(res, data));
+      }
 
       if (data.uploadUrl) {
         const put = await fetch(data.uploadUrl, {
           method: "PUT",
-          headers: { "Content-Type": file.type || "application/octet-stream" },
+          headers: { "Content-Type": contentType },
           body: file,
         });
-        if (!put.ok) throw new Error("Upload failed");
+        if (!put.ok) {
+          throw new Error(
+            "Couldn’t finish upload to storage. Check the file and try again.",
+          );
+        }
       }
 
       setFiles((prev) => [
         ...prev,
         {
-          id: data.fileId,
+          id: String(data.fileId),
           filename: file.name,
           sizeBytes: file.size,
           checklistItemId: checklistItemId || null,
@@ -128,9 +151,19 @@ export function ChecklistClient({
           ),
         );
       }
-      setMessage(data.message || "Uploaded");
+      setMessage(
+        typeof data.message === "string" && data.message
+          ? data.message
+          : "Uploaded",
+      );
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Upload error");
+      const msg = e instanceof Error ? e.message : "Upload error";
+      // Never surface raw JSON.parse / unexpected end of data to guests.
+      if (/JSON\.parse|unexpected end of data|is not valid JSON/i.test(msg)) {
+        setError("Couldn’t start upload.");
+      } else {
+        setError(msg);
+      }
     } finally {
       setUploading(null);
     }
@@ -205,7 +238,7 @@ export function ChecklistClient({
 
             {item.itemType === "file" && (
               <div>
-                <p className="font-medium">
+                <p className="font-medium" id={`file-label-${item.id}`}>
                   {item.label}
                   {item.done && (
                     <span className="ml-2 text-xs font-normal text-emerald-700">
@@ -219,14 +252,15 @@ export function ChecklistClient({
                   )}
                 </p>
                 {!readOnly && (
-                  <input
-                    type="file"
-                    className="mt-3 block w-full text-sm"
+                  <FileDropzone
+                    inputId={`file-input-${item.id}`}
                     disabled={uploading === item.id}
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) void onUpload(f, item.id);
-                    }}
+                    label={
+                      uploading === item.id
+                        ? "Uploading…"
+                        : "Click or drop file here"
+                    }
+                    onFile={(f) => void onUpload(f, item.id)}
                   />
                 )}
               </div>
@@ -236,19 +270,22 @@ export function ChecklistClient({
       </ul>
 
       <div className="tb-panel">
-        <h2 className="font-semibold">Extra file drop</h2>
+        <h2 className="font-semibold" id="extra-file-heading">
+          Extra file drop
+        </h2>
         <p className="mt-1 text-sm text-[color:var(--tb-slate-soft)]">
-          Attach anything else (max ~10 MB each).
+          Attach anything else the checklist didn’t ask for.
         </p>
         {!readOnly && (
-          <input
-            type="file"
-            className="mt-4 block w-full text-sm"
+          <FileDropzone
+            inputId="extra-file-input"
             disabled={uploading === "general"}
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) void onUpload(f);
-            }}
+            label={
+              uploading === "general"
+                ? "Uploading…"
+                : "Click or drop file here"
+            }
+            onFile={(f) => void onUpload(f)}
           />
         )}
         {message && (
