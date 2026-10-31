@@ -1,7 +1,7 @@
-import Link from "next/link";
-import { TotebirdLogo } from "@/components/logo";
+import { PublicSiteHeader } from "@/components/public-site-header";
 import { StatusPill } from "@/components/status-pill";
 import { listChangelogEntries } from "@/lib/data";
+import { hasClerkPublishable } from "@/lib/env-public";
 import { formatDate } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -19,21 +19,11 @@ export default async function ChangelogPage() {
     console.error("[totebird] changelog list soft-fail", err);
   }
 
+  const clerkEnabled = hasClerkPublishable();
+
   return (
     <div className="min-h-screen bg-[color:var(--tb-mist)]">
-      <header className="border-b border-[color:var(--tb-line)] bg-white">
-        <div className="tb-shell flex flex-wrap items-center justify-between gap-3 py-3">
-          <TotebirdLogo size="sm" variant="header" href="/" />
-          <nav className="flex items-center gap-4 text-sm font-medium text-[color:var(--tb-slate-soft)]">
-            <Link href="/" className="hover:text-[color:var(--tb-ink)]">
-              Home
-            </Link>
-            <Link href="/app" className="hover:text-[color:var(--tb-ink)]">
-              Dashboard
-            </Link>
-          </nav>
-        </div>
-      </header>
+      <PublicSiteHeader clerkEnabled={clerkEnabled} guest="changelog" />
 
       <main className="tb-shell max-w-2xl py-12">
         <p className="text-sm font-semibold uppercase tracking-wide text-[color:var(--tb-orange-deep)]">
