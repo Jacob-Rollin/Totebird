@@ -18,6 +18,7 @@ export async function POST(req: Request) {
     interval,
     customerEmail: session.email,
     customerId: session.stripeCustomerId,
+    subscriptionId: session.stripeSubscriptionId,
     userId: session.id,
     returnBaseUrl: originFromRequest(req),
   });

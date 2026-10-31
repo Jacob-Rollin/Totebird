@@ -1,7 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireSession } from "@/lib/auth";
-import { PLAN_LIMITS, storageUsageMessage, type Plan } from "@/lib/plans";
+import {
+  comparePlans,
+  PLAN_LIMITS,
+  storageUsageMessage,
+  type Plan,
+} from "@/lib/plans";
 import {
   countActiveLinks,
   getUserByIdBilling,
@@ -34,29 +39,30 @@ export default async function BillingPage({
     redirect("/app/billing?upgraded=1");
   }
 
-  // Live: ?upgraded=1 is only a Checkout return flag — not proof the webhook wrote Neon.
-  // Sync from Stripe (session_id or active subscription by customer/email) so the UI
-  // updates even when the webhook silently no-op'd or lagged.
-  // Soft-fail: Stripe/Neon blips must never 500 this page into error.tsx (www cutover).
+  // Live: reconcile Stripe → Neon on billing load (and after Checkout return).
+  // Soft-heals stacked Solo+Studio for existing Test customers; soft-fail never 500s.
   let plan = session.plan;
   let syncWarning: string | null = null;
   const isDemoUser = session.clerkId === "user_demo";
-  if (
-    q.upgraded === "1" &&
+  const shouldSyncStripe =
     !isDemoMode() &&
     !isDemoUser &&
-    plan === "free"
-  ) {
+    (q.upgraded === "1" ||
+      Boolean(session.stripeCustomerId) ||
+      Boolean(q.session_id));
+
+  if (shouldSyncStripe) {
     try {
       const synced = await syncPlanAfterUpgradeReturn({
         userId: session.id,
         email: session.email,
         stripeCustomerId: session.stripeCustomerId,
+        stripeSubscriptionId: session.stripeSubscriptionId,
         checkoutSessionId: q.session_id || null,
       });
       if (synced?.plan) {
         plan = synced.plan;
-      } else {
+      } else if (q.upgraded === "1") {
         // Re-read Neon in case the webhook landed between requireSession and now.
         const fresh = await getUserByIdBilling(session.id);
         if (fresh?.plan) plan = fresh.plan;
@@ -64,11 +70,16 @@ export default async function BillingPage({
           syncWarning =
             "Checkout completed — still confirming your plan with Stripe. Refresh in a moment if this still says Free.";
         }
+      } else {
+        const fresh = await getUserByIdBilling(session.id);
+        if (fresh?.plan) plan = fresh.plan;
       }
     } catch (err) {
       console.error("[totebird] billing upgrade sync threw", err);
-      syncWarning =
-        "Checkout completed — we could not refresh your plan yet. Refresh this page, or open Billing again in a minute.";
+      if (q.upgraded === "1") {
+        syncWarning =
+          "Checkout completed — we could not refresh your plan yet. Refresh this page, or open Billing again in a minute.";
+      }
     }
   }
 
@@ -122,6 +133,10 @@ export default async function BillingPage({
         {(["free", "solo", "studio"] as Plan[]).map((p) => {
           const meta = PLAN_LIMITS[p];
           const current = p === plan;
+          const isLowerPaid =
+            !current && p !== "free" && comparePlans(p, plan) < 0;
+          const isHigherPaid =
+            !current && p !== "free" && comparePlans(p, plan) > 0;
           return (
             <div
               key={p}
@@ -155,11 +170,20 @@ export default async function BillingPage({
                   <li key={f}>· {f}</li>
                 ))}
               </ul>
-              {!current && p !== "free" && (
+              {isHigherPaid && (
                 <div className="mt-5">
                   <BillingActions
                     plan={p}
                     mode="upgrade"
+                    demoMode={isDemoMode() || isDemoUser}
+                  />
+                </div>
+              )}
+              {isLowerPaid && (
+                <div className="mt-5">
+                  <BillingActions
+                    plan={p}
+                    mode="downgrade"
                     demoMode={isDemoMode() || isDemoUser}
                   />
                 </div>
@@ -176,6 +200,11 @@ export default async function BillingPage({
               {current && p === "free" && (
                 <p className="mt-5 text-sm text-[color:var(--tb-slate-soft)]">
                   Upgrade to unlock more active links and auto reminders.
+                </p>
+              )}
+              {!current && p === "free" && plan !== "free" && (
+                <p className="mt-5 text-sm text-[color:var(--tb-slate-soft)]">
+                  Cancel via Manage on your current plan to return to Free.
                 </p>
               )}
             </div>
