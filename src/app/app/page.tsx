@@ -101,7 +101,7 @@ export default async function DashboardPage({
 
       {needsConnect && (
         <p className="mt-4 rounded-lg border border-[color:var(--tb-line)] bg-white px-4 py-3 text-sm text-[color:var(--tb-slate)]">
-          Connect Stripe, R2, and Resend when ready —{" "}
+          Connect Stripe, B2, and Resend when ready —{" "}
           <Link
             href="/app/settings"
             className="font-semibold text-[color:var(--tb-orange-deep)]"

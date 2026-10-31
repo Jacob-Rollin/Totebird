@@ -10,16 +10,23 @@ import {
 } from "@/lib/data";
 import { isDemoMode } from "@/lib/env";
 import { getStripe } from "@/lib/stripe-client";
-import { planFromPriceId } from "@/lib/stripe";
-import type { Plan } from "@/lib/plans";
+import { planFromPriceId } from "@/lib/stripe-prices";
+import {
+  comparePlans,
+  isPaidPlan,
+  type PaidPlan,
+  type Plan,
+} from "@/lib/plans";
 
 type SubLike = {
   id?: string;
   status?: string;
   metadata?: { userId?: string; plan?: string } | null;
   customer?: string | { id?: string } | null;
-  items?: { data?: { price?: { id?: string } | string }[] };
+  items?: { data?: { price?: { id?: string } | string; id?: string }[] };
 };
+
+const ACTIVE_STATUSES = new Set(["active", "trialing", "past_due"]);
 
 export function subscriptionPriceId(sub: SubLike): string | null {
   const price = sub.items?.data?.[0]?.price;
@@ -33,6 +40,11 @@ export function planFromSubscription(sub: SubLike): Plan | null {
   const meta = sub.metadata?.plan;
   if (meta === "solo" || meta === "studio") return meta;
   return null;
+}
+
+/** True when this subscription maps to a Totebird Solo/Studio price (or metadata.plan). */
+export function isTotebirdPaidSubscription(sub: SubLike): boolean {
+  return isPaidPlan(planFromSubscription(sub) ?? "free");
 }
 
 function customerIdOf(
@@ -69,7 +81,7 @@ export async function resolveBillingUserId(input: {
 
 export async function applyPaidPlanToUser(input: {
   userId: string;
-  plan: Exclude<Plan, "free">;
+  plan: PaidPlan;
   stripeCustomerId?: string | null;
   stripeSubscriptionId?: string | null;
 }): Promise<User | null> {
@@ -97,11 +109,163 @@ export async function applyFreePlanToUser(input: {
   });
 }
 
+export type RankedSubscription = {
+  sub: Stripe.Subscription;
+  plan: PaidPlan;
+};
+
+/** Pick studio over solo; ties prefer the preferred id, else newest. */
+export function pickHighestSubscription(
+  ranked: RankedSubscription[],
+  preferSubscriptionId?: string | null,
+): RankedSubscription | null {
+  if (!ranked.length) return null;
+  const sorted = [...ranked].sort((a, b) => {
+    const byPlan = comparePlans(b.plan, a.plan);
+    if (byPlan !== 0) return byPlan;
+    if (preferSubscriptionId) {
+      if (a.sub.id === preferSubscriptionId) return -1;
+      if (b.sub.id === preferSubscriptionId) return 1;
+    }
+    return (b.sub.created ?? 0) - (a.sub.created ?? 0);
+  });
+  return sorted[0] ?? null;
+}
+
+export async function listActiveTotebirdSubscriptions(
+  stripe: Stripe,
+  customerId: string,
+): Promise<RankedSubscription[]> {
+  const statuses: Stripe.SubscriptionListParams["status"][] = [
+    "active",
+    "trialing",
+    "past_due",
+  ];
+  const out: RankedSubscription[] = [];
+  const seen = new Set<string>();
+  for (const status of statuses) {
+    const page = await stripe.subscriptions.list({
+      customer: customerId,
+      status,
+      limit: 20,
+    });
+    for (const sub of page.data) {
+      if (seen.has(sub.id)) continue;
+      seen.add(sub.id);
+      const plan = planFromSubscription(sub);
+      if (plan === "solo" || plan === "studio") {
+        out.push({ sub, plan });
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * Cancel every Totebird paid subscription except `keepSubscriptionId`.
+ * Immediate cancel so the customer is not double-billed.
+ */
+export async function cancelOtherTotebirdSubscriptions(
+  stripe: Stripe,
+  customerId: string,
+  keepSubscriptionId: string,
+): Promise<string[]> {
+  const ranked = await listActiveTotebirdSubscriptions(stripe, customerId);
+  const canceled: string[] = [];
+  for (const { sub, plan } of ranked) {
+    if (sub.id === keepSubscriptionId) continue;
+    try {
+      await stripe.subscriptions.cancel(sub.id);
+      canceled.push(sub.id);
+      console.info(
+        "[totebird] canceled duplicate Totebird subscription",
+        sub.id,
+        plan,
+        "kept",
+        keepSubscriptionId,
+      );
+    } catch (err) {
+      console.error(
+        "[totebird] failed to cancel duplicate subscription",
+        sub.id,
+        err,
+      );
+    }
+  }
+  return canceled;
+}
+
+/**
+ * Source of truth: among active Totebird subs, keep the highest plan,
+ * cancel lower duplicates, write users.plan + stripe_subscription_id.
+ */
+export async function reconcileCustomerSubscriptions(input: {
+  userId: string;
+  customerId: string;
+  preferSubscriptionId?: string | null;
+  /** When set, still cancel others even if this id is the only one we just created. */
+  ensureKeepSubscriptionId?: string | null;
+}): Promise<User | null> {
+  const stripe = getStripe();
+  if (!stripe) return null;
+
+  const ranked = await listActiveTotebirdSubscriptions(stripe, input.customerId);
+
+  // Checkout can race list(): retrieve the new sub explicitly if missing.
+  if (
+    input.ensureKeepSubscriptionId &&
+    !ranked.some((r) => r.sub.id === input.ensureKeepSubscriptionId)
+  ) {
+    try {
+      const sub = await stripe.subscriptions.retrieve(
+        input.ensureKeepSubscriptionId,
+      );
+      const plan = planFromSubscription(sub);
+      if (
+        (plan === "solo" || plan === "studio") &&
+        ACTIVE_STATUSES.has(sub.status)
+      ) {
+        ranked.push({ sub, plan });
+      }
+    } catch (err) {
+      console.error(
+        "[totebird] reconcile: could not retrieve ensureKeepSubscriptionId",
+        input.ensureKeepSubscriptionId,
+        err,
+      );
+    }
+  }
+
+  // Always keep the highest Totebird plan (studio > solo). ensureKeep only
+  // ensures the new sub is in the candidate set — it must not override Studio.
+  const keep = pickHighestSubscription(
+    ranked,
+    input.preferSubscriptionId || input.ensureKeepSubscriptionId,
+  );
+
+  if (!keep) {
+    return applyFreePlanToUser({ userId: input.userId });
+  }
+
+  await cancelOtherTotebirdSubscriptions(
+    stripe,
+    input.customerId,
+    keep.sub.id,
+  );
+
+  return applyPaidPlanToUser({
+    userId: input.userId,
+    plan: keep.plan,
+    stripeCustomerId: input.customerId,
+    stripeSubscriptionId: keep.sub.id,
+  });
+}
+
 async function planFromCheckoutSession(
   stripe: Stripe,
   session: Stripe.Checkout.Session,
 ): Promise<{
-  plan: Exclude<Plan, "free"> | null;
+  plan: PaidPlan | null;
   subscriptionId: string | null;
 }> {
   const metaPlan = session.metadata?.plan;
@@ -159,10 +323,12 @@ export async function syncUserFromCheckoutSession(
     session.customer_details?.email ||
     null;
 
+  const customerId = customerIdOf(session.customer);
+
   const userId = await resolveBillingUserId({
     userId: opts?.preferUserId || session.metadata?.userId,
     clientReferenceId: session.client_reference_id,
-    customerId: customerIdOf(session.customer),
+    customerId,
     email: sessionEmail,
   });
   if (!userId) {
@@ -173,20 +339,40 @@ export async function syncUserFromCheckoutSession(
     return null;
   }
 
+  // Prefer reconcile when we have a customer: cancels stacked Solo under Studio.
+  if (customerId && subscriptionId) {
+    const reconciled = await reconcileCustomerSubscriptions({
+      userId,
+      customerId,
+      preferSubscriptionId: subscriptionId,
+      ensureKeepSubscriptionId: subscriptionId,
+    });
+    if (reconciled) return reconciled;
+  }
+
   const updated = await applyPaidPlanToUser({
     userId,
     plan,
-    stripeCustomerId: customerIdOf(session.customer),
+    stripeCustomerId: customerId,
     stripeSubscriptionId: subscriptionId,
   });
   // If metadata pointed at a missing row, retry via email (Neon vs demo-store id skew).
   if (!updated && sessionEmail) {
     const byEmail = await getUserByEmailBilling(sessionEmail);
     if (byEmail && byEmail.id !== userId) {
+      if (customerId && subscriptionId) {
+        const reconciled = await reconcileCustomerSubscriptions({
+          userId: byEmail.id,
+          customerId,
+          preferSubscriptionId: subscriptionId,
+          ensureKeepSubscriptionId: subscriptionId,
+        });
+        if (reconciled) return reconciled;
+      }
       return applyPaidPlanToUser({
         userId: byEmail.id,
         plan,
-        stripeCustomerId: customerIdOf(session.customer),
+        stripeCustomerId: customerId,
         stripeSubscriptionId: subscriptionId,
       });
     }
@@ -199,9 +385,10 @@ export async function syncUserFromSubscriptionEvent(
   eventType: "customer.subscription.updated" | "customer.subscription.deleted",
   opts?: { preferUserId?: string | null; email?: string | null },
 ): Promise<User | null> {
+  const customerId = customerIdOf(sub.customer);
   const userId = await resolveBillingUserId({
     userId: opts?.preferUserId || sub.metadata?.userId,
-    customerId: customerIdOf(sub.customer),
+    customerId,
     email: opts?.email,
   });
   if (!userId) {
@@ -211,6 +398,24 @@ export async function syncUserFromSubscriptionEvent(
       sub.id,
     );
     return null;
+  }
+
+  // Always reconcile against *all* active Totebird subs. Canceling a lower-tier
+  // duplicate must not wipe Studio; a Solo-only cancel correctly returns Free.
+  if (customerId) {
+    const prefer =
+      eventType === "customer.subscription.deleted" ||
+      sub.status === "canceled" ||
+      sub.status === "unpaid" ||
+      sub.status === "incomplete_expired" ||
+      !ACTIVE_STATUSES.has(sub.status || "")
+        ? null
+        : sub.id ?? null;
+    return reconcileCustomerSubscriptions({
+      userId,
+      customerId,
+      preferSubscriptionId: prefer,
+    });
   }
 
   if (
@@ -235,20 +440,21 @@ export async function syncUserFromSubscriptionEvent(
   return applyPaidPlanToUser({
     userId,
     plan,
-    stripeCustomerId: customerIdOf(sub.customer),
+    stripeCustomerId: customerId,
     stripeSubscriptionId: sub.id,
   });
 }
 
 /**
- * Post-Checkout UX fallback: when the user lands on /app/billing?upgraded=1,
- * pull the session (or active subscription) from Stripe and write users.plan
- * even if the webhook is delayed or misconfigured.
+ * Soft migration / post-Checkout fallback: if the customer has multiple active
+ * Totebird subscriptions, cancel lower tiers and set plan to the highest.
+ * Also covers delayed webhooks via session_id.
  */
 export async function syncPlanAfterUpgradeReturn(input: {
   userId: string;
   email: string;
   stripeCustomerId?: string | null;
+  stripeSubscriptionId?: string | null;
   checkoutSessionId?: string | null;
 }): Promise<User | null> {
   if (isDemoMode()) return null;
@@ -298,22 +504,10 @@ export async function syncPlanAfterUpgradeReturn(input: {
     }
     if (!customerId) return null;
 
-    const active = await stripe.subscriptions.list({
-      customer: customerId,
-      status: "active",
-      limit: 5,
-    });
-    const trialing = await stripe.subscriptions.list({
-      customer: customerId,
-      status: "trialing",
-      limit: 5,
-    });
-    const sub = [...active.data, ...trialing.data][0];
-    if (!sub) return null;
-
-    return syncUserFromSubscriptionEvent(sub, "customer.subscription.updated", {
-      preferUserId: input.userId,
-      email: input.email,
+    return reconcileCustomerSubscriptions({
+      userId: input.userId,
+      customerId,
+      preferSubscriptionId: input.stripeSubscriptionId,
     });
   } catch (err) {
     console.error("[totebird] syncPlanAfterUpgradeReturn failed", err);

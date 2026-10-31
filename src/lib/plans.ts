@@ -1,4 +1,24 @@
 export type Plan = "free" | "solo" | "studio";
+export type PaidPlan = Exclude<Plan, "free">;
+
+/** studio > solo > free — used when a customer somehow has multiple active subs. */
+export const PLAN_RANK: Record<Plan, number> = {
+  free: 0,
+  solo: 1,
+  studio: 2,
+};
+
+export function isPaidPlan(plan: Plan): plan is PaidPlan {
+  return plan === "solo" || plan === "studio";
+}
+
+export function maxPlan(a: Plan, b: Plan): Plan {
+  return PLAN_RANK[a] >= PLAN_RANK[b] ? a : b;
+}
+
+export function comparePlans(a: Plan, b: Plan): number {
+  return PLAN_RANK[a] - PLAN_RANK[b];
+}
 
 export const PLAN_LIMITS: Record<
   Plan,
@@ -55,6 +75,15 @@ export const PLAN_LIMITS: Record<
 
 export function canCreateLink(plan: Plan, activeCount: number) {
   return activeCount < PLAN_LIMITS[plan].activeLinks;
+}
+
+/** App-enforced plan storage cap (Free 250MB / Solo 25GB / Studio 100GB). */
+export function canAcceptUpload(
+  plan: Plan,
+  usedBytes: number,
+  incomingBytes: number,
+) {
+  return usedBytes + incomingBytes <= PLAN_LIMITS[plan].storageBytes;
 }
 
 export function formatStorage(bytes: number) {

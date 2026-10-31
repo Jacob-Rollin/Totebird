@@ -23,13 +23,19 @@ export function hasClerk() {
   );
 }
 
-export function hasR2() {
+/** Shared Backblaze B2 bucket (S3-compatible). Soft-fails when unset. */
+export function hasB2() {
   return Boolean(
-    process.env.R2_ACCOUNT_ID &&
-      process.env.R2_ACCESS_KEY_ID &&
-      process.env.R2_SECRET_ACCESS_KEY &&
-      process.env.R2_BUCKET_NAME,
+    process.env.B2_KEY_ID &&
+      process.env.B2_APPLICATION_KEY &&
+      process.env.B2_BUCKET &&
+      process.env.B2_ENDPOINT,
   );
+}
+
+/** @deprecated Prefer hasB2() — R2 is no longer used. */
+export function hasR2() {
+  return hasB2();
 }
 
 export function hasResend() {
@@ -77,7 +83,9 @@ export function adminUserIds(): string[] {
 }
 
 export function maxUploadBytes() {
-  const n = Number(process.env.R2_MAX_UPLOAD_BYTES);
+  const n = Number(
+    process.env.B2_MAX_UPLOAD_BYTES || process.env.R2_MAX_UPLOAD_BYTES,
+  );
   return Number.isFinite(n) && n > 0 ? n : 10 * 1024 * 1024;
 }
 
@@ -86,7 +94,9 @@ export function integrationStatus() {
     demoMode: isDemoMode(),
     database: hasDatabase(),
     clerk: hasClerk(),
-    r2: hasR2(),
+    b2: hasB2(),
+    /** @deprecated alias of b2 */
+    r2: hasB2(),
     resend: hasResend(),
     stripe: hasStripe(),
     stripeConnect: isStripeConnectEnabled(),

@@ -257,7 +257,7 @@ export function LandingPage({
                 <p className="mt-3 text-[color:var(--tb-slate-soft)] leading-relaxed">
                   Itemized asks with optional uploads. Clients tick boxes and
                   attach logos, contracts, or assets — size-capped and stored in
-                  your R2 bucket.
+                  secure object storage.
                 </p>
                 <ul className="mt-5 space-y-2 text-sm text-[color:var(--tb-slate)]">
                   <li>· Passwordless `/c/[token]` page</li>
@@ -411,7 +411,7 @@ export function LandingPage({
               },
               {
                 t: "Privacy-minded",
-                d: "Uploads go to your R2 bucket. Payments settle in your Stripe account.",
+                d: "Uploads go to Totebird object storage. Payments settle in your Stripe account.",
               },
             ].map((item) => (
               <div key={item.t}>

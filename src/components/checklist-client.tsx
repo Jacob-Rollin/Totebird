@@ -109,7 +109,7 @@ export function ChecklistClient({
           headers: { "Content-Type": file.type || "application/octet-stream" },
           body: file,
         });
-        if (!put.ok) throw new Error("R2 upload failed");
+        if (!put.ok) throw new Error("Upload failed");
       }
 
       setFiles((prev) => [
