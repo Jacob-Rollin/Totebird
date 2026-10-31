@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { ConnectActions } from "@/components/connect-actions";
 import { requireSession } from "@/lib/auth";
 import { updateUserModeration } from "@/lib/data";
+import { filesBaseUrl } from "@/lib/b2";
 import {
   integrationStatus,
   appUrl,
@@ -69,6 +70,7 @@ export default async function SettingsPage({
   }
 
   const status = integrationStatus();
+  const hasFilesCdn = Boolean(filesBaseUrl());
   const hasBillingPrices = Boolean(
     process.env.STRIPE_PRICE_SOLO_MONTHLY ||
       process.env.STRIPE_PRICE_SOLO_YEARLY,
@@ -144,6 +146,17 @@ export default async function SettingsPage({
               status.b2
                 ? "Presigned uploads to the shared B2 bucket are enabled."
                 : "Add B2_KEY_ID, B2_APPLICATION_KEY, B2_BUCKET, and B2_ENDPOINT for real file drops."
+            }
+          />
+          <Row
+            ok={hasFilesCdn || status.b2}
+            title="Files CDN (pretty download links)"
+            hint={
+              hasFilesCdn
+                ? `Client uploads open via ${filesBaseUrl()}.`
+                : status.b2
+                  ? "Optional: set NEXT_PUBLIC_FILES_BASE_URL=https://files.totebird.com after the Cloudflare Worker is live. Until then, freelancers still download via a signed app link — no Backblaze console needed."
+                  : "Set B2 first; then optionally add NEXT_PUBLIC_FILES_BASE_URL for CDN download URLs."
             }
           />
           <Row

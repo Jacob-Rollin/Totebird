@@ -494,6 +494,8 @@ export const demoStore = {
   getFilesForLink: (linkId: string) =>
     store().files.filter((f) => f.linkId === linkId),
 
+  getFileById: (id: string) => store().files.find((f) => f.id === id),
+
   storageUsedByUser(userId: string) {
     const linkIds = new Set(
       store().links.filter((l) => l.userId === userId).map((l) => l.id),

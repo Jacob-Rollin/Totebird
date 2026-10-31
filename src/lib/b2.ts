@@ -1,10 +1,37 @@
 import {
+  GetObjectCommand,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { hasB2, maxUploadBytes } from "@/lib/env";
 import { newId } from "@/lib/ids";
+
+/** Optional CDN (Cloudflare Worker at files.totebird.com). */
+export function filesBaseUrl() {
+  const base = process.env.NEXT_PUBLIC_FILES_BASE_URL?.trim();
+  return base ? base.replace(/\/$/, "") : null;
+}
+
+/** Pretty public URL when NEXT_PUBLIC_FILES_BASE_URL is set. */
+export function publicFileUrl(storageKey: string) {
+  const base = filesBaseUrl();
+  if (!base || !storageKey) return null;
+  return `${base}/${storageKey.replace(/^\//, "")}`;
+}
+
+/**
+ * Href for freelancer Download: CDN + object key when configured,
+ * otherwise the authenticated app download route (signed B2 GET).
+ */
+export function resolveFileDownloadHref(input: {
+  fileId: string;
+  storageKey: string;
+}) {
+  return (
+    publicFileUrl(input.storageKey) ?? `/api/files/${input.fileId}/download`
+  );
+}
 
 /**
  * Shared Backblaze B2 bucket via S3-compatible API.
@@ -94,12 +121,9 @@ export async function createPresignedUpload(input: {
       signableHeaders: new Set(["content-type"]),
     });
 
-    // Optional CDN base (Cloudflare Worker at files.totebird.com — Phase 5).
+    // Optional CDN base (Cloudflare Worker at files.totebird.com).
     // Until the Worker exists, clients still upload via the signed B2 URL.
-    const filesBase = process.env.NEXT_PUBLIC_FILES_BASE_URL;
-    const publicUrl = filesBase
-      ? `${filesBase.replace(/\/$/, "")}/${key}`
-      : null;
+    const publicUrl = publicFileUrl(key);
 
     return {
       ok: true as const,
@@ -118,6 +142,43 @@ export async function createPresignedUpload(input: {
       ok: false as const,
       error:
         "Upload isn’t configured — could not create a storage upload URL. Check B2 env on Netlify.",
+    };
+  }
+}
+
+/** Short-lived signed GET for private B2 objects (link-owner downloads). */
+export async function createPresignedDownload(input: {
+  storageKey: string;
+  filename?: string;
+  expiresIn?: number;
+}) {
+  if (!hasB2()) {
+    return {
+      ok: false as const,
+      error: "File storage isn’t configured.",
+    };
+  }
+
+  try {
+    const s3 = client()!;
+    const safeName = (input.filename || "download").replace(/"/g, "");
+    const command = new GetObjectCommand({
+      Bucket: process.env.B2_BUCKET!,
+      Key: input.storageKey,
+      ResponseContentDisposition: `attachment; filename="${safeName}"`,
+    });
+    const url = await getSignedUrl(s3, command, {
+      expiresIn: input.expiresIn ?? 60 * 15,
+    });
+    return { ok: true as const, url };
+  } catch (err) {
+    console.error(
+      "[totebird] B2 download presign failed",
+      err instanceof Error ? err.message : err,
+    );
+    return {
+      ok: false as const,
+      error: "Could not create a download link. Check B2 env on Netlify.",
     };
   }
 }

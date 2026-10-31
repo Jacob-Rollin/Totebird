@@ -676,6 +676,21 @@ async function syncChecklistCompletion(linkId: string) {
   }
 }
 
+export async function getFileById(id: string) {
+  if (shouldUseDemoStore()) {
+    return demoStore.getFileById(id) ?? null;
+  }
+  return dbTry(
+    async () => {
+      const row = await getDb().query.files.findFirst({
+        where: eq(files.id, id),
+      });
+      return row ?? null;
+    },
+    () => demoStore.getFileById(id) ?? null,
+  );
+}
+
 export async function addFileRecord(input: {
   linkId: string;
   checklistItemId?: string | null;
