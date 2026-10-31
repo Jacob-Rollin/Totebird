@@ -1,0 +1,23 @@
+{
+  "private": true,
+  "name": "totebird-files-b2",
+  "version": "1.0.0",
+  "description": "Cloudflare Worker: serve private Backblaze B2 objects at files.totebird.com (GET/HEAD only)",
+  "main": "index.js",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "format": "prettier --write '**/*.{js,json,md,toml}'"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "prettier": "^3.7.4",
+    "wrangler": "^4.123.0"
+  },
+  "dependencies": {
+    "aws4fetch": "^1.0.20"
+  }
+}

@@ -1,0 +1,23 @@
+# Totebird CDN Worker — private B2 downloads at files.totebird.com
+# Source adapted from https://github.com/backblaze-b2-samples/cloudflare-b2
+#
+# Do NOT put B2_APPLICATION_KEY in this file.
+#   echo "<applicationKey>" | npx wrangler secret put B2_APPLICATION_KEY
+#
+# Fill the placeholders below to match your Backblaze bucket, then:
+#   npm install && npx wrangler deploy
+
+name = "totebird-files-b2"
+workers_dev = true
+compatibility_date = "2023-09-04"
+main = "index.js"
+
+[vars]
+# Same value as Netlify B2_KEY_ID (or a read-only app key ID for this bucket)
+B2_APPLICATION_KEY_ID = "<your b2 application key id>"
+# Host only — no https:// — e.g. s3.us-west-004.backblazeb2.com
+B2_ENDPOINT = "<s3.REGION.backblazeb2.com>"
+# Exact bucket name so https://files.totebird.com/<object-key> maps 1:1
+BUCKET_NAME = "totebird-uploads"
+ALLOW_LIST_BUCKET = "false"
+RCLONE_DOWNLOAD = "false"
