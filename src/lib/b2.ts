@@ -3,7 +3,7 @@ import {
   S3Client,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { hasB2, maxUploadBytes } from "@/lib/env";
+import { hasB2, maxUploadBytes, missingB2EnvNames } from "@/lib/env";
 import { newId } from "@/lib/ids";
 
 /**
@@ -12,6 +12,8 @@ import { newId } from "@/lib/ids";
  */
 function client() {
   if (!hasB2()) return null;
+  // Netlify needs a full URL (https://…). Cloudflare Worker uses host-only —
+  // if someone pasted the Worker value, signing throws Invalid URL.
   const endpoint = process.env.B2_ENDPOINT!.replace(/\/$/, "");
   const region =
     process.env.B2_REGION ||
@@ -28,6 +30,14 @@ function client() {
     // B2 S3-compatible API expects path-style URLs.
     forcePathStyle: true,
   });
+}
+
+function presignConfigError(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err ?? "");
+  if (/invalid url/i.test(raw)) {
+    return "Upload isn’t configured — B2_ENDPOINT must be a full https:// URL (e.g. https://s3.REGION.backblazeb2.com), not the Worker host-only value. Check B2 env on Netlify.";
+  }
+  return "Upload isn’t configured — could not create a storage upload URL. Check B2 env on Netlify.";
 }
 
 function objectKey(input: {
@@ -60,14 +70,16 @@ export async function createPresignedUpload(input: {
   });
 
   if (!hasB2()) {
+    const missing = missingB2EnvNames().join(", ");
     return {
       ok: true as const,
       demo: true as const,
       key,
       uploadUrl: null as string | null,
       publicUrl: null as string | null,
-      message:
-        "Upload isn’t configured — file metadata will be stored; upload skipped in demo.",
+      message: missing
+        ? `Upload isn’t configured — missing ${missing}. File metadata will be stored; upload skipped in demo.`
+        : "Upload isn’t configured — file metadata will be stored; upload skipped in demo.",
     };
   }
 
@@ -104,8 +116,7 @@ export async function createPresignedUpload(input: {
     );
     return {
       ok: false as const,
-      error:
-        "Upload isn’t configured — could not create a storage upload URL. Check B2 env on Netlify.",
+      error: presignConfigError(err),
     };
   }
 }
