@@ -4,6 +4,10 @@ import { useMemo, useState } from "react";
 import { ProgressBar } from "@/components/progress-bar";
 import { FileDropzone } from "@/components/file-dropzone";
 import {
+  checklistProgress,
+  checklistProgressLabel,
+} from "@/lib/plans";
+import {
   readResponseJson,
   uploadStartErrorMessage,
 } from "@/lib/read-response-json";
@@ -65,15 +69,7 @@ export function ChecklistClient({
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const progress = useMemo(() => {
-    const total = items.length;
-    const done = items.filter((i) => i.done).length;
-    return {
-      done,
-      total,
-      percent: total ? Math.round((done / total) * 100) : 0,
-    };
-  }, [items]);
+  const progress = useMemo(() => checklistProgress(items), [items]);
 
   const filesByItemId = useMemo(() => {
     const map = new Map<string, FileRow[]>();
@@ -244,7 +240,7 @@ export function ChecklistClient({
     <div className="space-y-8">
       <ProgressBar
         percent={progress.percent}
-        label={`${progress.done} of ${progress.total} complete`}
+        label={checklistProgressLabel(progress)}
       />
 
       <ul className="space-y-3">

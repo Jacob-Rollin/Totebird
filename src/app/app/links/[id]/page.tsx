@@ -21,7 +21,7 @@ import {
 } from "@/lib/data";
 import { appUrl } from "@/lib/env";
 import { formatDate, formatMoney } from "@/lib/format";
-import { canCreateLink } from "@/lib/plans";
+import { canCreateLink, checklistProgressLabel } from "@/lib/plans";
 import {
   CONNECT_REQUIRED_MESSAGE,
   invoiceConnectGate,
@@ -247,7 +247,7 @@ export default async function LinkDetailPage({
             <div className="mb-4">
               <ProgressBar
                 percent={progress.percent}
-                label={`${progress.done} of ${progress.total} complete`}
+                label={checklistProgressLabel(progress)}
               />
             </div>
             <h2 className="font-semibold">Items</h2>
