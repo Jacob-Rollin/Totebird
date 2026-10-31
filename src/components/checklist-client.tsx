@@ -123,14 +123,23 @@ export function ChecklistClient({
       }
 
       if (data.uploadUrl) {
-        const put = await fetch(data.uploadUrl, {
-          method: "PUT",
-          headers: { "Content-Type": contentType },
-          body: file,
-        });
+        let put: Response;
+        try {
+          put = await fetch(data.uploadUrl, {
+            method: "PUT",
+            headers: { "Content-Type": contentType },
+            body: file,
+          });
+        } catch {
+          // Cross-origin B2 PUT without bucket CORS → TypeError
+          // (Firefox: NetworkError…; Chrome: Failed to fetch).
+          throw new Error(
+            "Couldn’t reach storage. Check B2 CORS for your domain (allow s3_put from www.totebird.com / totebird.com).",
+          );
+        }
         if (!put.ok) {
           throw new Error(
-            "Couldn’t finish upload to storage. Check the file and try again.",
+            `Couldn’t finish upload to storage (HTTP ${put.status}). Check B2 CORS and that Content-Type matches the signed URL.`,
           );
         }
       }
