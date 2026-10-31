@@ -8,7 +8,7 @@
 # Already likely set (do not re-paste secrets into chat):
 #   DATABASE_URL, NEXT_PUBLIC_APP_URL
 # Next in Netlify env (see README + Project you-only checklist):
-#   ADMIN_EMAIL, Clerk, R2, Resend, Stripe, optional CRON_SECRET
+#   ADMIN_EMAIL, Clerk, B2, Resend, Stripe, optional CRON_SECRET
 # Do not paste every key into this file.
 
 [build]

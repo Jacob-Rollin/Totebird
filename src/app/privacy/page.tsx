@@ -34,7 +34,7 @@ export default function PrivacyPage() {
           <ul className="list-disc space-y-2 pl-5">
             <li>Freelancer account info via Clerk (email, name).</li>
             <li>Link content you create (checklist items, invoices, client emails).</li>
-            <li>Files uploaded by clients (stored in your configured R2 bucket).</li>
+            <li>Files uploaded by clients (stored in Totebird object storage).</li>
             <li>Payment metadata via Stripe (we do not store full card numbers).</li>
           </ul>
           <h2 className="font-display text-2xl">How we use it</h2>

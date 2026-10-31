@@ -57,6 +57,15 @@ export function canCreateLink(plan: Plan, activeCount: number) {
   return activeCount < PLAN_LIMITS[plan].activeLinks;
 }
 
+/** App-enforced plan storage cap (Free 250MB / Solo 25GB / Studio 100GB). */
+export function canAcceptUpload(
+  plan: Plan,
+  usedBytes: number,
+  incomingBytes: number,
+) {
+  return usedBytes + incomingBytes <= PLAN_LIMITS[plan].storageBytes;
+}
+
 export function formatStorage(bytes: number) {
   if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(0)} GB`;
   if (bytes >= 1024 ** 2) return `${Math.round(bytes / 1024 ** 2)} MB`;

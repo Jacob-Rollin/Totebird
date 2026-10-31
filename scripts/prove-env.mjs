@@ -48,20 +48,21 @@ const groups = [
     needBoth: ["NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", "CLERK_SECRET_KEY"],
   },
   {
-    title: "Cloudflare R2",
+    title: "Backblaze B2 (shared bucket)",
     keys: [
-      "R2_ACCOUNT_ID",
-      "R2_ACCESS_KEY_ID",
-      "R2_SECRET_ACCESS_KEY",
-      "R2_BUCKET_NAME",
-      "R2_PUBLIC_URL",
-      "R2_MAX_UPLOAD_BYTES",
+      "B2_KEY_ID",
+      "B2_APPLICATION_KEY",
+      "B2_BUCKET",
+      "B2_ENDPOINT",
+      "B2_REGION",
+      "NEXT_PUBLIC_FILES_BASE_URL",
+      "B2_MAX_UPLOAD_BYTES",
     ],
     needAll: [
-      "R2_ACCOUNT_ID",
-      "R2_ACCESS_KEY_ID",
-      "R2_SECRET_ACCESS_KEY",
-      "R2_BUCKET_NAME",
+      "B2_KEY_ID",
+      "B2_APPLICATION_KEY",
+      "B2_BUCKET",
+      "B2_ENDPOINT",
     ],
   },
   {
@@ -111,7 +112,7 @@ for (const g of groups) {
     const some = states.some(Boolean);
     const all = states.every(Boolean);
     if (some && !all) {
-      console.log(`   ⚠ partial R2 core: need ${g.needAll.join(", ")}`);
+      console.log(`   ⚠ partial B2 core: need ${g.needAll.join(", ")}`);
     }
   }
   console.log("");
@@ -120,11 +121,11 @@ for (const g of groups) {
 const hasDatabase = present("DATABASE_URL");
 const hasClerk =
   present("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY") && present("CLERK_SECRET_KEY");
-const hasR2 =
-  present("R2_ACCOUNT_ID") &&
-  present("R2_ACCESS_KEY_ID") &&
-  present("R2_SECRET_ACCESS_KEY") &&
-  present("R2_BUCKET_NAME");
+const hasB2 =
+  present("B2_KEY_ID") &&
+  present("B2_APPLICATION_KEY") &&
+  present("B2_BUCKET") &&
+  present("B2_ENDPOINT");
 const hasResend = present("RESEND_API_KEY");
 const hasStripe = present("STRIPE_SECRET_KEY");
 const stripeConnect =
@@ -135,7 +136,7 @@ console.log("## Derived (src/lib/env.ts)");
 console.log(`  demoMode       ${demoMode}`);
 console.log(`  hasDatabase    ${hasDatabase}`);
 console.log(`  hasClerk       ${hasClerk}`);
-console.log(`  hasR2          ${hasR2}`);
+console.log(`  hasB2          ${hasB2}`);
 console.log(`  hasResend      ${hasResend}`);
 console.log(`  hasStripe      ${hasStripe}`);
 console.log(`  stripeConnect  ${stripeConnect}`);

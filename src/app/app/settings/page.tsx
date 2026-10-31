@@ -75,7 +75,11 @@ export default async function SettingsPage({
   );
   const hasCron = Boolean(process.env.CRON_SECRET);
   const allCore =
-    status.database && status.clerk && status.stripe && status.r2 && status.resend;
+    status.database &&
+    status.clerk &&
+    status.stripe &&
+    status.b2 &&
+    status.resend;
   const connect = connectFeatureStatus(session);
 
   return (
@@ -134,12 +138,12 @@ export default async function SettingsPage({
             hint={connect.message}
           />
           <Row
-            ok={status.r2}
-            title="Cloudflare R2 uploads"
+            ok={status.b2}
+            title="Backblaze B2 uploads"
             hint={
-              status.r2
-                ? "Presigned uploads enabled."
-                : "Add R2_ACCOUNT_ID, keys, and R2_BUCKET_NAME for real file drops."
+              status.b2
+                ? "Presigned uploads to the shared B2 bucket are enabled."
+                : "Add B2_KEY_ID, B2_APPLICATION_KEY, B2_BUCKET, and B2_ENDPOINT for real file drops."
             }
           />
           <Row
@@ -206,7 +210,7 @@ export default async function SettingsPage({
         </p>
         <p className="text-[color:var(--tb-slate-soft)]">
           Step-by-step platform walkthrough lives in the Project docs (Netlify →
-          Neon → Clerk → R2 → Resend → Stripe). Billing:{" "}
+          Neon → Clerk → B2 → Resend → Stripe). Billing:{" "}
           <Link href="/app/billing" className="text-[color:var(--tb-orange-deep)]">
             /app/billing
           </Link>
