@@ -67,32 +67,45 @@ export async function createPresignedUpload(input: {
       uploadUrl: null as string | null,
       publicUrl: null as string | null,
       message:
-        "B2 is not configured — file metadata will be stored; upload skipped in demo.",
+        "Upload isn’t configured — file metadata will be stored; upload skipped in demo.",
     };
   }
 
-  const s3 = client()!;
-  const command = new PutObjectCommand({
-    Bucket: process.env.B2_BUCKET!,
-    Key: key,
-    ContentType: input.contentType,
-    ContentLength: input.sizeBytes,
-  });
-  const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 60 * 10 });
+  try {
+    const s3 = client()!;
+    // Do not sign ContentLength — browsers set it on PUT; mismatched signed
+    // length is a common cause of opaque upload failures with special filenames.
+    const command = new PutObjectCommand({
+      Bucket: process.env.B2_BUCKET!,
+      Key: key,
+      ContentType: input.contentType,
+    });
+    const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 60 * 10 });
 
-  // Optional CDN base (Cloudflare Worker at files.totebird.com — Phase 5).
-  // Until the Worker exists, clients still upload via the signed B2 URL.
-  const filesBase = process.env.NEXT_PUBLIC_FILES_BASE_URL;
-  const publicUrl = filesBase
-    ? `${filesBase.replace(/\/$/, "")}/${key}`
-    : null;
+    // Optional CDN base (Cloudflare Worker at files.totebird.com — Phase 5).
+    // Until the Worker exists, clients still upload via the signed B2 URL.
+    const filesBase = process.env.NEXT_PUBLIC_FILES_BASE_URL;
+    const publicUrl = filesBase
+      ? `${filesBase.replace(/\/$/, "")}/${key}`
+      : null;
 
-  return {
-    ok: true as const,
-    demo: false as const,
-    key,
-    uploadUrl,
-    publicUrl,
-    message: null as string | null,
-  };
+    return {
+      ok: true as const,
+      demo: false as const,
+      key,
+      uploadUrl,
+      publicUrl,
+      message: null as string | null,
+    };
+  } catch (err) {
+    console.error(
+      "[totebird] B2 presign failed",
+      err instanceof Error ? err.message : err,
+    );
+    return {
+      ok: false as const,
+      error:
+        "Upload isn’t configured — could not create a storage upload URL. Check B2 env on Netlify.",
+    };
+  }
 }
