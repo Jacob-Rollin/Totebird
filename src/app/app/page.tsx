@@ -92,7 +92,8 @@ export default async function DashboardPage({
       {(q.limit || !canCreate) && (
         <p className="mt-4 rounded-lg border border-[color:var(--tb-orange)]/40 bg-[color:var(--tb-orange-soft)] px-4 py-3 text-sm">
           Active link limit reached on {PLAN_LIMITS[session.plan].label}. Close or
-          archive a link, or{" "}
+          archive a link to free a slot (files still count toward storage until
+          you Delete), or{" "}
           <Link href="/app/billing" className="font-semibold underline">
             upgrade
           </Link>

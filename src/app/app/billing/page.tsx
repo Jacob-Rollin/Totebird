@@ -138,6 +138,10 @@ export default async function BillingPage({
           {Number.isFinite(limits.activeLinks) ? limits.activeLinks : "∞"} links ·{" "}
           {storageUsageMessage(used, plan)}
         </p>
+        <p className="mt-2 text-xs text-[color:var(--tb-slate-soft)]">
+          Only active links use a slot. Closed/archived links still count toward
+          storage until you permanently Delete them (and their files).
+        </p>
       </div>
 
       <div className="mt-8 grid gap-4 md:grid-cols-3">

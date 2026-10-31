@@ -444,6 +444,26 @@ export const demoStore = {
     return link;
   },
 
+  /** Permanent remove — demo has no B2; drops link + related rows. */
+  hardDeleteLink(id: string) {
+    const s = store();
+    const idx = s.links.findIndex((l) => l.id === id);
+    if (idx < 0) return false;
+
+    const invIds = new Set(
+      s.invoices.filter((i) => i.linkId === id).map((i) => i.id),
+    );
+    s.invoiceLineItems = s.invoiceLineItems.filter(
+      (li) => !invIds.has(li.invoiceId),
+    );
+    s.invoices = s.invoices.filter((i) => i.linkId !== id);
+    s.files = s.files.filter((f) => f.linkId !== id);
+    s.checklistItems = s.checklistItems.filter((c) => c.linkId !== id);
+    s.events = s.events.filter((e) => e.linkId !== id);
+    s.links.splice(idx, 1);
+    return true;
+  },
+
   getItemsForLink: (linkId: string) =>
     store()
       .checklistItems.filter((i) => i.linkId === linkId)

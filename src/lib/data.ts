@@ -4,6 +4,7 @@ import { demoStore, type CreateItemInput } from "@/db/demo-store";
 import {
   changelogEntries,
   checklistItems,
+  events,
   feedback,
   files,
   invoiceLineItems,
@@ -17,6 +18,7 @@ import {
   type Link,
   type User,
 } from "@/db/schema";
+import { deleteObjects } from "@/lib/b2";
 import { hasDatabase, isDemoMode } from "@/lib/env";
 import { newId, newToken } from "@/lib/ids";
 import {
@@ -600,6 +602,69 @@ export async function updateLinkStatus(id: string, status: Link["status"]) {
     .where(eq(links.id, id))
     .returning();
   return updated ?? null;
+}
+
+/**
+ * Permanent delete: B2 objects for the link, then cascade DB rows
+ * (files → checklist items / invoice lines → invoice → events → link).
+ * Soft statuses (close/archive/disable) stay separate — this frees storage.
+ */
+export async function hardDeleteLink(linkId: string): Promise<{
+  ok: boolean;
+  error?: string;
+}> {
+  if (!linkId) return { ok: false, error: "Missing link id" };
+
+  if (shouldUseDemoStore() || isSeededDemoLinkId(linkId)) {
+    const removed = demoStore.hardDeleteLink(linkId);
+    return removed
+      ? { ok: true }
+      : { ok: false, error: "Link not found" };
+  }
+
+  try {
+    const db = getDb();
+    const link = await db.query.links.findFirst({
+      where: eq(links.id, linkId),
+    });
+    if (!link) return { ok: false, error: "Link not found" };
+
+    const fileRows = await db.query.files.findMany({
+      where: eq(files.linkId, linkId),
+    });
+    const keys = fileRows.map((f) => f.storageKey).filter(Boolean);
+    if (keys.length) {
+      const b2 = await deleteObjects(keys);
+      if (!b2.ok) {
+        // Still cascade DB so plan storage accounting matches deleted files.
+        console.error(
+          "[totebird] hardDeleteLink continuing after B2 failure",
+          b2.error,
+        );
+      }
+    }
+
+    const inv = await db.query.invoices.findFirst({
+      where: eq(invoices.linkId, linkId),
+    });
+    if (inv) {
+      await db
+        .delete(invoiceLineItems)
+        .where(eq(invoiceLineItems.invoiceId, inv.id));
+      await db.delete(invoices).where(eq(invoices.id, inv.id));
+    }
+
+    // files → checklist_items (FK), then items, events, link
+    await db.delete(files).where(eq(files.linkId, linkId));
+    await db.delete(checklistItems).where(eq(checklistItems.linkId, linkId));
+    await db.delete(events).where(eq(events.linkId, linkId));
+    await db.delete(links).where(eq(links.id, linkId));
+
+    return { ok: true };
+  } catch (err) {
+    console.error("[totebird] hardDeleteLink failed", err);
+    return { ok: false, error: "Could not delete link" };
+  }
 }
 
 export async function getChecklistBundle(token: string) {
