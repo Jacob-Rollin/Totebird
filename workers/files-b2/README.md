@@ -14,7 +14,7 @@ Project store doc `docs/cloudflare-b2-files-worker.md`.
 1. Edit `wrangler.toml` `[vars]`:
    - `B2_APPLICATION_KEY_ID` — key ID (Netlify name: `B2_KEY_ID`)
    - `B2_ENDPOINT` — host only, e.g. `s3.us-west-004.backblazeb2.com`
-   - `BUCKET_NAME` — exact bucket (e.g. `totebird-uploads`)
+   - `BUCKET_NAME` — exact bucket (placeholder in `wrangler.toml`: `your-b2-bucket-name`; override with the real name in the Cloudflare dashboard / `wrangler` — never commit the Netlify `B2_BUCKET` value)
    - leave `ALLOW_LIST_BUCKET` / `RCLONE_DOWNLOAD` as `false`
 2. In B2 → Bucket Settings → Bucket Info set  
    `{"Cache-Control":"public, max-age=86400"}` so Cloudflare can cache signed upstream responses.
