@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { ConnectActions } from "@/components/connect-actions";
 import { requireSession } from "@/lib/auth";
@@ -10,9 +11,23 @@ import {
   isStripeConnectEnabled,
 } from "@/lib/env";
 import { PLAN_LIMITS } from "@/lib/plans";
-import { connectFeatureStatus, refreshConnectAccount } from "@/lib/stripe-connect";
+import {
+  connectFeatureStatus,
+  createExpressOnboardingLink,
+  refreshConnectAccount,
+} from "@/lib/stripe-connect";
 
 export const metadata = { title: "Settings" };
+
+async function requestOriginFallback(): Promise<string> {
+  const h = await headers();
+  const proto = h.get("x-forwarded-proto")?.split(",")[0]?.trim() || "https";
+  const host =
+    h.get("x-forwarded-host")?.split(",")[0]?.trim() ||
+    h.get("host")?.trim();
+  if (host) return `${proto}://${host}`.replace(/\/$/, "");
+  return appUrl();
+}
 
 function Row({
   ok,
@@ -51,6 +66,7 @@ export default async function SettingsPage({
   const session = await requireSession();
   if (!session) redirect("/sign-in");
   const q = await searchParams;
+  let connectReturnError: string | null = null;
 
   // Return/refresh from Stripe Express Account Link
   if (
@@ -66,6 +82,22 @@ export default async function SettingsPage({
       });
       session.stripeConnectChargesEnabled = live.chargesEnabled;
       session.stripeConnectDetailsSubmitted = live.detailsSubmitted;
+    }
+
+    // Stripe docs: refresh_url must mint a new Account Link and redirect back.
+    if (q.connect === "refresh" && !session.stripeConnectChargesEnabled) {
+      const link = await createExpressOnboardingLink({
+        userId: session.id,
+        email: session.email,
+        existingAccountId: session.stripeConnectAccountId,
+        returnBaseUrl: await requestOriginFallback(),
+      });
+      if (link.ok && link.url) {
+        redirect(link.url);
+      }
+      connectReturnError =
+        link.message ||
+        "Could not resume Stripe onboarding. Use Connect Stripe below.";
     }
   }
 
@@ -207,6 +239,20 @@ export default async function SettingsPage({
           Freelancer invoice money should land in your Stripe Express account
           (Direct charges). Billing subscriptions stay on the platform account.
         </p>
+        {connectReturnError && (
+          <p
+            role="alert"
+            className="mt-3 rounded-lg border border-[color:var(--tb-orange-deep)] bg-[color:var(--tb-orange-soft)] px-3 py-2 text-sm text-[color:var(--tb-ink)]"
+          >
+            {connectReturnError}
+          </p>
+        )}
+        {q.connect === "return" && connect.state === "pending" && (
+          <p className="mt-3 rounded-lg border border-[color:var(--tb-line)] bg-white px-3 py-2 text-sm text-[color:var(--tb-slate)]">
+            Stripe onboarding saved for later — finish it with{" "}
+            <strong>Resume Stripe onboarding</strong> when ready.
+          </p>
+        )}
         <div className="mt-4">
           <ConnectActions
             connectEnabled={status.stripeConnect}
