@@ -1,21 +1,34 @@
 /**
- * Stripe Connect (Express) — scaffold for freelancer invoice payouts.
+ * Stripe Connect (Express) — freelancer invoice payouts via Direct charges.
  *
- * Recommendation: Direct charges on Express accounts + application_fee on Free.
- * See docs/stripe-integration-plan.md (Project store).
- *
- * Safe without live keys: all mutations no-op / return clear messages unless
- * STRIPE_CONNECT_ENABLED=true and STRIPE_SECRET_KEY is set.
+ * When STRIPE_CONNECT_ENABLED=true: invoice Checkout requires a connected
+ * account with charges_enabled (never falls back to the platform balance).
+ * Free plan: application_fee_amount from STRIPE_PLATFORM_FEE_BPS (default 1%).
+ * Solo/Studio: 0 platform fee.
  */
 
 import { appUrl, isStripeConnectEnabled, hasStripe } from "@/lib/env";
 import { getStripe } from "@/lib/stripe-client";
+
+export const CONNECT_REQUIRED_MESSAGE =
+  "Connect Stripe in Settings before sending invoices.";
+
+export const CONNECT_NOT_ENABLED_MESSAGE =
+  "Stripe Connect is not enabled on this site yet. Set STRIPE_CONNECT_ENABLED=true after Dashboard Connect setup.";
+
+export type ConnectUiState =
+  | "not_connected"
+  | "pending"
+  | "ready"
+  | "disabled";
 
 export type ConnectAccountStatus = {
   enabled: boolean;
   accountId: string | null;
   chargesEnabled: boolean;
   detailsSubmitted: boolean;
+  /** Compact label for Settings / New invoice */
+  state: ConnectUiState;
   /** Human-readable next step for Settings UI */
   message: string;
 };
@@ -34,6 +47,7 @@ export function connectFeatureStatus(user: {
       accountId,
       chargesEnabled: false,
       detailsSubmitted: false,
+      state: "disabled",
       message:
         "Stripe is not configured. Add STRIPE_SECRET_KEY (Test mode) in Netlify / .env.local.",
     };
@@ -45,8 +59,8 @@ export function connectFeatureStatus(user: {
       accountId,
       chargesEnabled: Boolean(user.stripeConnectChargesEnabled),
       detailsSubmitted: Boolean(user.stripeConnectDetailsSubmitted),
-      message:
-        "Connect is scaffolded but off. After Dashboard Connect setup, set STRIPE_CONNECT_ENABLED=true.",
+      state: "disabled",
+      message: CONNECT_NOT_ENABLED_MESSAGE,
     };
   }
 
@@ -56,7 +70,9 @@ export function connectFeatureStatus(user: {
       accountId: null,
       chargesEnabled: false,
       detailsSubmitted: false,
-      message: "Connect your Stripe Express account to receive invoice payments.",
+      state: "not_connected",
+      message:
+        "Not connected — connect Stripe Express to receive client invoice payments.",
     };
   }
 
@@ -66,8 +82,9 @@ export function connectFeatureStatus(user: {
       accountId,
       chargesEnabled: false,
       detailsSubmitted: Boolean(user.stripeConnectDetailsSubmitted),
+      state: "pending",
       message:
-        "Finish Stripe onboarding so charges are enabled, then clients can pay you directly.",
+        "Pending — finish Stripe onboarding so charges are enabled, then clients can pay you.",
     };
   }
 
@@ -76,14 +93,68 @@ export function connectFeatureStatus(user: {
     accountId,
     chargesEnabled: true,
     detailsSubmitted: Boolean(user.stripeConnectDetailsSubmitted),
-    message: "Stripe Connect ready — invoice Checkout can use Direct charges.",
+    state: "ready",
+    message: "Ready to receive payments — client invoices settle to your Stripe.",
   };
 }
 
+/** True when Connect is on and this user can take Direct invoice charges. */
+export function isConnectReadyForInvoices(user: {
+  stripeConnectAccountId?: string | null;
+  stripeConnectChargesEnabled?: boolean | null;
+}): boolean {
+  return (
+    isStripeConnectEnabled() &&
+    Boolean(user.stripeConnectAccountId) &&
+    Boolean(user.stripeConnectChargesEnabled)
+  );
+}
+
 /**
- * Create (or reuse) an Express account and return an Account Link URL.
- * TODO(Phase 3): wire country/email from session; handle refresh/return URLs in UI.
+ * Gate payable invoices when Connect is required.
+ * - Flag on + not ready → hard block (never charge the platform).
+ * - Flag off → soft: allow platform Checkout only in demo / non-Connect mode.
  */
+export function invoiceConnectGate(user: {
+  stripeConnectAccountId?: string | null;
+  stripeConnectChargesEnabled?: boolean | null;
+}): {
+  ok: boolean;
+  connectReady: boolean;
+  connectAccountId: string | null;
+  message: string | null;
+  soft: boolean;
+} {
+  if (!isStripeConnectEnabled()) {
+    return {
+      ok: true,
+      connectReady: false,
+      connectAccountId: null,
+      message: CONNECT_NOT_ENABLED_MESSAGE,
+      soft: true,
+    };
+  }
+
+  if (isConnectReadyForInvoices(user)) {
+    return {
+      ok: true,
+      connectReady: true,
+      connectAccountId: user.stripeConnectAccountId!,
+      message: null,
+      soft: false,
+    };
+  }
+
+  return {
+    ok: false,
+    connectReady: false,
+    connectAccountId: null,
+    message: CONNECT_REQUIRED_MESSAGE,
+    soft: false,
+  };
+}
+
+/** Create (or reuse) an Express account and return an Account Link URL. */
 export async function createExpressOnboardingLink(input: {
   userId: string;
   email: string;

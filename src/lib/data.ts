@@ -172,6 +172,32 @@ export async function getUserByStripeCustomerId(customerId: string) {
   }
 }
 
+/** Resolve freelancer by Stripe Connect Express account id (acct_…). */
+export async function getUserByConnectAccountId(accountId: string) {
+  if (!accountId) return null;
+  if (!isLiveBillingDb()) {
+    return (
+      demoStore
+        .getUsers()
+        .find((u) => u.stripeConnectAccountId === accountId) ?? null
+    );
+  }
+  try {
+    return (
+      (await getDb().query.users.findFirst({
+        where: eq(users.stripeConnectAccountId, accountId),
+      })) ?? null
+    );
+  } catch (err) {
+    noteDbFailure(err);
+    return (
+      demoStore
+        .getUsers()
+        .find((u) => u.stripeConnectAccountId === accountId) ?? null
+    );
+  }
+}
+
 export async function getUserByIdBilling(id: string) {
   if (!id) return null;
   if (!isLiveBillingDb()) return demoStore.getUserById(id) ?? null;

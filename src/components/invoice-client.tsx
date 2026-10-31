@@ -9,15 +9,18 @@ export function InvoiceClient({
   currency,
   paid,
   readOnly,
+  payBlockedMessage = null,
 }: {
   token: string;
   amountCents: number;
   currency: string;
   paid: boolean;
   readOnly: boolean;
+  /** When Connect is required but the freelancer cannot receive charges yet */
+  payBlockedMessage?: string | null;
 }) {
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(payBlockedMessage);
 
   if (paid) {
     return (
@@ -27,12 +30,14 @@ export function InvoiceClient({
     );
   }
 
+  const blocked = Boolean(payBlockedMessage);
+
   return (
     <div>
       <button
         type="button"
         className="tb-btn tb-btn-primary w-full"
-        disabled={loading || readOnly}
+        disabled={loading || readOnly || blocked}
         onClick={async () => {
           setLoading(true);
           setMessage(null);
@@ -59,7 +64,9 @@ export function InvoiceClient({
       >
         {loading
           ? "Opening Checkout…"
-          : `Pay ${formatMoney(amountCents, currency)}`}
+          : blocked
+            ? "Payment unavailable"
+            : `Pay ${formatMoney(amountCents, currency)}`}
       </button>
       {message && (
         <p className="mt-3 text-sm text-[color:var(--tb-slate-soft)]">{message}</p>

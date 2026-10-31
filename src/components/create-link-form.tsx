@@ -19,9 +19,14 @@ type LineDraft = { description: string; quantity: string; amount: string };
 export function CreateLinkForm({
   type,
   action,
+  invoiceSubmitDisabled = false,
+  invoiceDisabledHint = null,
 }: {
   type: "checklist" | "invoice";
   action: (formData: FormData) => Promise<void>;
+  /** When Connect is required but the freelancer is not ready */
+  invoiceSubmitDisabled?: boolean;
+  invoiceDisabledHint?: string | null;
 }) {
   const [templateKey, setTemplateKey] = useState("");
   const [items, setItems] = useState<BuilderItem[]>(() => defaultBuilderItems());
@@ -477,9 +482,16 @@ export function CreateLinkForm({
         </>
       )}
 
-      <button type="submit" className="tb-btn tb-btn-primary w-full">
+      <button
+        type="submit"
+        className="tb-btn tb-btn-primary w-full"
+        disabled={type === "invoice" && invoiceSubmitDisabled}
+      >
         Create {type} link
       </button>
+      {type === "invoice" && invoiceSubmitDisabled && invoiceDisabledHint && (
+        <p className="text-center text-sm text-rose-800">{invoiceDisabledHint}</p>
+      )}
     </form>
   );
 }

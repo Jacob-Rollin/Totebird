@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 import {
   getInvoiceByCheckoutSession,
+  getUserByConnectAccountId,
   getUserById,
   markInvoicePaid,
   updateUserModeration,
@@ -117,7 +118,8 @@ export async function POST(req: Request) {
       }
     }
 
-    // Connect Express lifecycle (Phase 2 scaffold — persists when account metadata has user id)
+    // Connect Express lifecycle — keep Billing events on the same platform endpoint.
+    // Enable “Listen to events on Connected accounts” in Dashboard for Direct Checkout.
     if (
       event.type === "account.updated" ||
       event.type === "account.application.deauthorized"
@@ -129,28 +131,29 @@ export async function POST(req: Request) {
         metadata?: { totebirdUserId?: string };
       };
 
+      const parsed = parseConnectAccountEvent(account);
+      let userId = parsed.userId;
+      if (!userId && parsed.accountId) {
+        const byAcct = await getUserByConnectAccountId(parsed.accountId);
+        userId = byAcct?.id ?? null;
+      }
+
       if (event.type === "account.application.deauthorized") {
-        const parsed = parseConnectAccountEvent(account);
-        if (parsed.userId) {
-          await updateUserModeration(parsed.userId, {
+        if (userId) {
+          await updateUserModeration(userId, {
             stripeConnectAccountId: null,
             stripeConnectChargesEnabled: false,
             stripeConnectDetailsSubmitted: false,
           });
         }
-      } else {
-        const parsed = parseConnectAccountEvent(account);
-        // TODO(Phase 3): if metadata.totebirdUserId missing, resolve via
-        // stripe_connect_account_id unique index lookup.
-        if (parsed.userId) {
-          const existing = await getUserById(parsed.userId);
-          if (existing) {
-            await updateUserModeration(parsed.userId, {
-              stripeConnectAccountId: parsed.accountId ?? undefined,
-              stripeConnectChargesEnabled: parsed.chargesEnabled,
-              stripeConnectDetailsSubmitted: parsed.detailsSubmitted,
-            });
-          }
+      } else if (userId) {
+        const existing = await getUserById(userId);
+        if (existing) {
+          await updateUserModeration(userId, {
+            stripeConnectAccountId: parsed.accountId ?? undefined,
+            stripeConnectChargesEnabled: parsed.chargesEnabled,
+            stripeConnectDetailsSubmitted: parsed.detailsSubmitted,
+          });
         }
       }
     }

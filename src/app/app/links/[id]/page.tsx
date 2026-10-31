@@ -17,15 +17,22 @@ import { appUrl } from "@/lib/env";
 import { formatDate, formatMoney } from "@/lib/format";
 import { canCreateLink } from "@/lib/plans";
 import { countActiveLinks } from "@/lib/data";
+import {
+  CONNECT_REQUIRED_MESSAGE,
+  invoiceConnectGate,
+} from "@/lib/stripe-connect";
 
 export default async function LinkDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ error?: string }>;
 }) {
   const session = await requireSession();
   if (!session) redirect("/sign-in");
   const { id } = await params;
+  const q = await searchParams;
   const link = await getLinkById(id);
   if (!link || link.userId !== session.id) notFound();
 
@@ -33,6 +40,9 @@ export default async function LinkDetailPage({
   const path = link.type === "checklist" ? `/c/${link.token}` : `/i/${link.token}`;
   const url = `${base}${path}`;
   const printUrl = link.type === "invoice" ? `${base}/i/${link.token}/print` : null;
+  const connectGate = invoiceConnectGate(session);
+  const invoicePayBlocked =
+    link.type === "invoice" && !connectGate.ok;
 
   let items: {
     id: string;
@@ -83,6 +93,12 @@ export default async function LinkDetailPage({
     if (!s) return;
     const l = await getLinkById(id);
     if (!l || l.userId !== s.id) return;
+    if (l.type === "invoice") {
+      const gate = invoiceConnectGate(s);
+      if (!gate.ok) {
+        redirect(`/app/links/${id}?error=connect`);
+      }
+    }
     await updateLinkStatus(id, "active");
     redirect(`/app/links/${id}`);
   }
@@ -124,6 +140,18 @@ export default async function LinkDetailPage({
       <Link href="/app" className="text-sm text-[color:var(--tb-slate-soft)]">
         ← Back
       </Link>
+      {q.error === "connect" && (
+        <p className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+          {CONNECT_REQUIRED_MESSAGE}{" "}
+          <Link
+            href="/app/settings"
+            className="font-semibold underline-offset-2 hover:underline"
+          >
+            Open Settings
+          </Link>
+        </p>
+      )}
+
       <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="font-display text-3xl">{link.title}</h1>
@@ -172,6 +200,18 @@ export default async function LinkDetailPage({
           <code className="break-all text-sm">{url}</code>
           <CopyButton value={url} />
         </div>
+        {invoicePayBlocked && (
+          <p className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-900">
+            {CONNECT_REQUIRED_MESSAGE} Guest pay is blocked until Stripe is
+            ready.{" "}
+            <Link
+              href="/app/settings"
+              className="font-semibold underline-offset-2 hover:underline"
+            >
+              Open Settings
+            </Link>
+          </p>
+        )}
         {link.clientEmail && (
           <p className="mt-3 text-sm text-[color:var(--tb-slate-soft)]">
             Client: {link.clientEmail}
