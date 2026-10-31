@@ -37,7 +37,11 @@ body {
   color: var(--foreground);
   font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
   margin: 0;
+  /* 100vh falls back for older browsers. 100dvh tracks iOS Safari’s
+     collapsing address bar so scroll-up does not paint a mist rectangle
+     over the lower viewport (min-h-screen / 100vh large-viewport bug). */
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 h1,

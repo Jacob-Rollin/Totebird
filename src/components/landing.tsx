@@ -101,7 +101,7 @@ export function LandingPage({
   clerkEnabled?: boolean;
 }) {
   return (
-    <div className="min-h-screen text-[color:var(--tb-ink)]">
+    <div className="min-h-dvh text-[color:var(--tb-ink)]">
       <header className="sticky top-0 z-40 border-b border-[color:var(--tb-line)]/70 bg-[color:var(--tb-mist)]/85 backdrop-blur-md">
         <div className="tb-shell flex items-center justify-between gap-4 py-3">
           <TotebirdLogo size="sm" variant="header" />
@@ -143,7 +143,7 @@ export function LandingPage({
       <main>
         {/* Hero — brand first, one composition; one strong logo on the left */}
         <section className="tb-hero-bg relative overflow-hidden">
-          <div className="tb-shell grid min-h-[min(92vh,820px)] items-center gap-10 py-12 lg:grid-cols-[1.05fr_0.95fr] lg:gap-12 lg:py-16">
+          <div className="tb-shell grid min-h-[min(92dvh,820px)] items-center gap-10 py-12 lg:grid-cols-[1.05fr_0.95fr] lg:gap-12 lg:py-16">
             <div className="tb-rise">
               <TotebirdLogo size="hero" href={null} variant="wordmark" />
               <h1 className="font-display mt-8 max-w-xl text-4xl leading-[1.08] text-[color:var(--tb-ink)] sm:text-5xl lg:text-[3.4rem]">

@@ -20,7 +20,7 @@ export default async function ChangelogPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[color:var(--tb-mist)]">
+    <div className="min-h-dvh bg-[color:var(--tb-mist)]">
       <header className="border-b border-[color:var(--tb-line)] bg-white">
         <div className="tb-shell flex flex-wrap items-center justify-between gap-3 py-3">
           <TotebirdLogo size="sm" variant="header" href="/" />

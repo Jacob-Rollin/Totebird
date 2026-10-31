@@ -14,7 +14,7 @@ export default function DemoPage() {
   const done = items.filter((i) => i.done).length;
 
   return (
-    <div className="min-h-screen tb-hero-bg">
+    <div className="min-h-dvh tb-hero-bg">
       <header className="border-b border-[color:var(--tb-line)]/70 bg-white/70 backdrop-blur">
         <div className="tb-shell flex items-center justify-between py-3">
           <TotebirdLogo size="md" variant="header" />
