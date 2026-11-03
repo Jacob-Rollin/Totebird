@@ -68,6 +68,11 @@ export function InvoiceClient({
             ? "Payment unavailable"
             : `Pay ${formatMoney(amountCents, currency)}`}
       </button>
+      {!blocked && (
+        <p className="mt-2 text-center text-xs text-[color:var(--tb-slate-soft)]">
+          Secure checkout powered by Stripe
+        </p>
+      )}
       {message && (
         <p className="mt-3 text-sm text-[color:var(--tb-slate-soft)]">{message}</p>
       )}

@@ -2,6 +2,7 @@ import { newId, newToken } from "@/lib/ids";
 import type {
   ChangelogEntry,
   ChecklistItem,
+  CustomDomain,
   Event,
   Feedback,
   FileRow,
@@ -21,12 +22,13 @@ type Store = {
   events: Event[];
   feedback: Feedback[];
   changelogEntries: ChangelogEntry[];
+  customDomains: CustomDomain[];
 };
 
-const g = globalThis as unknown as { __totebirdDemoV4?: Store };
+const g = globalThis as unknown as { __totebirdDemoV5?: Store };
 
 function store(): Store {
-  if (!g.__totebirdDemoV4) {
+  if (!g.__totebirdDemoV5) {
     const now = new Date();
     const demoUser: User = {
       id: "usr_demo",
@@ -77,7 +79,7 @@ function store(): Store {
 
     const invId = "inv_demo";
 
-    g.__totebirdDemoV4 = {
+    g.__totebirdDemoV5 = {
       users: [
         demoUser,
         {
@@ -101,6 +103,7 @@ function store(): Store {
       links: [checklistLink, invoiceLink],
       feedback: [],
       changelogEntries: [],
+      customDomains: [],
       checklistItems: [
         {
           id: "cli_1",
@@ -222,7 +225,7 @@ function store(): Store {
       events: [],
     };
   }
-  return g.__totebirdDemoV4!;
+  return g.__totebirdDemoV5!;
 }
 
 export type CreateItemInput = {
@@ -648,6 +651,70 @@ export const demoStore = {
     };
     store().changelogEntries.push(row);
     return row;
+  },
+
+  getCustomDomainByUserId(userId: string) {
+    return store().customDomains.find((d) => d.userId === userId) ?? null;
+  },
+
+  upsertCustomDomain(input: {
+    userId: string;
+    hostname: string;
+    verificationToken: string;
+  }): CustomDomain {
+    const existing = demoStore.getCustomDomainByUserId(input.userId);
+    const now = new Date();
+    if (existing) {
+      existing.hostname = input.hostname;
+      existing.verificationToken = input.verificationToken;
+      existing.status = "pending";
+      existing.statusDetail = null;
+      existing.lastCheckedAt = null;
+      existing.verifiedAt = null;
+      existing.updatedAt = now;
+      return existing;
+    }
+    const row: CustomDomain = {
+      id: newId("cdn"),
+      userId: input.userId,
+      hostname: input.hostname,
+      status: "pending",
+      verificationToken: input.verificationToken,
+      lastCheckedAt: null,
+      verifiedAt: null,
+      statusDetail: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    store().customDomains.push(row);
+    return row;
+  },
+
+  updateCustomDomain(
+    id: string,
+    patch: Partial<
+      Pick<
+        CustomDomain,
+        | "hostname"
+        | "status"
+        | "verificationToken"
+        | "lastCheckedAt"
+        | "verifiedAt"
+        | "statusDetail"
+      >
+    >,
+  ) {
+    const row = store().customDomains.find((d) => d.id === id);
+    if (!row) return null;
+    Object.assign(row, patch, { updatedAt: new Date() });
+    return row;
+  },
+
+  clearCustomDomain(userId: string) {
+    const s = store();
+    const before = s.customDomains.length;
+    s.customDomains = s.customDomains.filter((d) => d.userId !== userId);
+    return before !== s.customDomains.length;
   },
 
   metrics() {
