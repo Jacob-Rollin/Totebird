@@ -92,11 +92,14 @@ function HamburgerIcon({ open }: { open: boolean }) {
   );
 }
 
+/** Email + optional admin flag — full SessionUser or Clerk client user. */
+export type AppNavUser = Pick<SessionUser, "email"> & { isAdmin?: boolean };
+
 export function AppNav({
   user,
   section = "app",
 }: {
-  user: SessionUser;
+  user: AppNavUser;
   section?: "app" | "admin";
 }) {
   const [open, setOpen] = useState(false);

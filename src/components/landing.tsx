@@ -1,10 +1,10 @@
 import Link from "next/link";
+import { LandingHeader } from "@/components/landing-header";
 import { TotebirdLogo } from "@/components/logo";
 import { SessionLink } from "@/components/session-link";
 
 /** Guest defaults — signed-in swaps happen client-side via SessionLink. */
 const CTA = {
-  signIn: { guest: "/sign-in", signedIn: "/app" },
   startFree: { guest: "/sign-up", signedIn: "/app" },
   startSolo: { guest: "/sign-up", signedIn: "/app/billing" },
   startStudio: { guest: "/sign-up", signedIn: "/app/billing" },
@@ -102,43 +102,7 @@ export function LandingPage({
 }) {
   return (
     <div className="min-h-dvh text-[color:var(--tb-ink)]">
-      <header className="sticky top-0 z-40 border-b border-[color:var(--tb-line)]/70 bg-[color:var(--tb-mist)]/85 backdrop-blur-md">
-        <div className="tb-shell flex items-center justify-between gap-4 py-3">
-          <TotebirdLogo size="sm" variant="header" />
-          <nav className="hidden items-center gap-6 text-sm font-medium text-[color:var(--tb-slate-soft)] md:flex">
-            <a href="#how" className="hover:text-[color:var(--tb-ink)]">
-              How it works
-            </a>
-            <a href="#product" className="hover:text-[color:var(--tb-ink)]">
-              Product
-            </a>
-            <a href="#pricing" className="hover:text-[color:var(--tb-ink)]">
-              Pricing
-            </a>
-            <a href="#faq" className="hover:text-[color:var(--tb-ink)]">
-              FAQ
-            </a>
-          </nav>
-          <div className="flex items-center gap-2">
-            <SessionLink
-              clerkEnabled={clerkEnabled}
-              whenGuest={CTA.signIn.guest}
-              whenSignedIn={CTA.signIn.signedIn}
-              className="tb-btn tb-btn-ghost hidden sm:inline-flex text-sm"
-            >
-              Sign in
-            </SessionLink>
-            <SessionLink
-              clerkEnabled={clerkEnabled}
-              whenGuest={CTA.startFree.guest}
-              whenSignedIn={CTA.startFree.signedIn}
-              className="tb-btn tb-btn-primary text-sm px-4 py-2"
-            >
-              Start free
-            </SessionLink>
-          </div>
-        </div>
-      </header>
+      <LandingHeader clerkEnabled={clerkEnabled} />
 
       <main>
         {/* Hero — brand first, one composition; one strong logo on the left */}
@@ -158,6 +122,7 @@ export function LandingPage({
                   clerkEnabled={clerkEnabled}
                   whenGuest={CTA.startFree.guest}
                   whenSignedIn={CTA.startFree.signedIn}
+                  signedInLabel="Open app"
                   className="tb-btn tb-btn-primary"
                 >
                   Start free
@@ -318,6 +283,7 @@ export function LandingPage({
                     "“Powered by Totebird”",
                   ],
                   cta: "Start free",
+                  ctaSignedIn: "Open app",
                   whenGuest: CTA.startFree.guest,
                   whenSignedIn: CTA.startFree.signedIn,
                   highlight: false,
@@ -334,6 +300,7 @@ export function LandingPage({
                     "No invoice platform fee",
                   ],
                   cta: "Start Solo",
+                  ctaSignedIn: "Open billing",
                   whenGuest: CTA.startSolo.guest,
                   whenSignedIn: CTA.startSolo.signedIn,
                   highlight: true,
@@ -349,6 +316,7 @@ export function LandingPage({
                     "Seats coming later",
                   ],
                   cta: "Start Studio",
+                  ctaSignedIn: "Open billing",
                   whenGuest: CTA.startStudio.guest,
                   whenSignedIn: CTA.startStudio.signedIn,
                   highlight: false,
@@ -385,6 +353,7 @@ export function LandingPage({
                     clerkEnabled={clerkEnabled}
                     whenGuest={tier.whenGuest}
                     whenSignedIn={tier.whenSignedIn}
+                    signedInLabel={tier.ctaSignedIn}
                     className={`tb-btn mt-8 w-full ${
                       tier.highlight ? "tb-btn-primary" : "tb-btn-secondary"
                     }`}
@@ -481,6 +450,7 @@ export function LandingPage({
                 clerkEnabled={clerkEnabled}
                 whenGuest={CTA.startFree.guest}
                 whenSignedIn={CTA.startFree.signedIn}
+                signedInLabel="Open app"
                 className="tb-btn tb-btn-primary"
               >
                 Start free

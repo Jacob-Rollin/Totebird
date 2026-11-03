@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
-import type { ComponentProps } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import { SoftBoundary } from "@/components/soft-boundary";
 
 type SessionLinkProps = Omit<ComponentProps<typeof Link>, "href"> & {
@@ -12,6 +12,11 @@ type SessionLinkProps = Omit<ComponentProps<typeof Link>, "href"> & {
   whenSignedIn: string;
   /** False → always use whenGuest (no useAuth; safe outside ClerkProvider). */
   clerkEnabled: boolean;
+  /**
+   * Label when signed in. Guests keep `children`.
+   * Fixes “Sign in” still reading logged-out while href already goes to /app.
+   */
+  signedInLabel?: ReactNode;
 };
 
 /**
@@ -23,18 +28,33 @@ export function SessionLink({
   whenGuest,
   whenSignedIn,
   clerkEnabled,
+  signedInLabel,
+  children,
   ...props
 }: SessionLinkProps) {
   if (!clerkEnabled) {
-    return <Link href={whenGuest} {...props} />;
+    return (
+      <Link href={whenGuest} {...props}>
+        {children}
+      </Link>
+    );
   }
   return (
-    <SoftBoundary fallback={<Link href={whenGuest} {...props} />}>
+    <SoftBoundary
+      fallback={
+        <Link href={whenGuest} {...props}>
+          {children}
+        </Link>
+      }
+    >
       <ClerkSessionLink
         whenGuest={whenGuest}
         whenSignedIn={whenSignedIn}
+        signedInLabel={signedInLabel}
         {...props}
-      />
+      >
+        {children}
+      </ClerkSessionLink>
     </SoftBoundary>
   );
 }
@@ -42,8 +62,16 @@ export function SessionLink({
 function ClerkSessionLink({
   whenGuest,
   whenSignedIn,
+  signedInLabel,
+  children,
   ...props
 }: Omit<SessionLinkProps, "clerkEnabled">) {
   const { isSignedIn } = useAuth();
-  return <Link href={isSignedIn ? whenSignedIn : whenGuest} {...props} />;
+  const label =
+    isSignedIn && signedInLabel != null ? signedInLabel : children;
+  return (
+    <Link href={isSignedIn ? whenSignedIn : whenGuest} {...props}>
+      {label}
+    </Link>
+  );
 }
