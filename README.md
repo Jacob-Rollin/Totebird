@@ -8,6 +8,13 @@ Passwordless client links for freelancers — **checklist / file-drop** and **in
 
 Production app is Worker **`totebird`** (OpenNext + Workers Builds). Files CDN is Worker **`totebird-files-b2`**. See **[`CLOUDFLARE.md`](./CLOUDFLARE.md)** for env vars / `keep_vars` (deploys wipe plaintext Variables unless Secrets or `keep_vars`).
 
+**Workers Builds (Worker `totebird` → Settings → Build)** — paste exactly:
+
+- **Build command:** `npm run build:cf`
+- **Deploy command:** `npx opennextjs-cloudflare deploy -- --keep-vars`
+
+Do not use plain `npm run build` for the CF Build step — that is `next build` only and leaves no `.open-next/` for deploy.
+
 Netlify notes below are historical / rollback. Prefer Cloudflare dashboard Variables & Secrets + Build variables for `NEXT_PUBLIC_*`.
 
 ## Deploy on Netlify (legacy / rollback — site was named **totebird**)
