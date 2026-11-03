@@ -108,6 +108,13 @@ a {
   margin-inline: auto;
 }
 
+/* Focused create / checklist / invoice column (~768px).
+   Use with or without .tb-shell; does not set width so shell padding wins. */
+.tb-flow {
+  max-width: 48rem;
+  margin-inline: auto;
+}
+
 .tb-card-table {
   width: 100%;
   border-collapse: collapse;

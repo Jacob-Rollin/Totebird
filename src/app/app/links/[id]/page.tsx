@@ -164,7 +164,7 @@ export default async function LinkDetailPage({
   }
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="tb-flow">
       <Link href="/app" className="text-sm text-[color:var(--tb-slate-soft)]">
         ← Back
       </Link>

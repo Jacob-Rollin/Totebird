@@ -116,7 +116,7 @@ export default async function NewLinkPage({
   }
 
   return (
-    <div className="mx-auto max-w-xl">
+    <div className="tb-flow">
       <h1 className="font-display text-3xl">
         New {type === "invoice" ? "invoice" : "checklist"}
       </h1>
