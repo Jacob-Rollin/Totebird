@@ -1,0 +1,4 @@
+# Copy to .dev.vars for `opennextjs-cloudflare preview` / `wrangler dev`.
+# Never commit .dev.vars. Production runtime vars/secrets live in the
+# Cloudflare dashboard for Worker `totebird` (keep_vars = true in wrangler.jsonc).
+NEXTJS_ENV=development
