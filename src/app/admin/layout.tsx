@@ -17,7 +17,7 @@ export default async function AdminLayout({
   }
 
   return (
-    <div className="min-h-screen bg-[color:var(--tb-mist)]">
+    <div className="min-h-dvh bg-[color:var(--tb-mist)]">
       <AppNav user={session} section="admin" />
       <main className="tb-shell py-8">{children}</main>
     </div>

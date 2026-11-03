@@ -7,7 +7,7 @@ export function ClerkSetupHint({ intent }: { intent: "sign-in" | "sign-up" }) {
     intent === "sign-in" ? "sign in" : "start a free account";
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-8 bg-[color:var(--tb-mist)] px-4">
+    <div className="flex min-h-dvh flex-col items-center justify-center gap-8 bg-[color:var(--tb-mist)] px-4">
       <TotebirdLogo size="lg" variant="header" />
       <div className="w-full max-w-md rounded-2xl border border-[color:var(--tb-line)] bg-white p-8 text-center shadow-[0_24px_60px_-40px_rgba(57,69,84,0.35)]">
         <h1 className="font-display text-2xl text-[color:var(--tb-ink)]">

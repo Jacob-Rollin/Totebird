@@ -10,7 +10,7 @@ export const dynamic = "force-static";
 
 export default function PrivacyPage() {
   return (
-    <div className="min-h-screen bg-[color:var(--tb-mist)]">
+    <div className="min-h-dvh bg-[color:var(--tb-mist)]">
       <header className="border-b border-[color:var(--tb-line)] bg-white">
         <div className="tb-shell py-3">
           <TotebirdLogo size="sm" variant="header" />
