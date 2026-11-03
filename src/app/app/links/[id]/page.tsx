@@ -9,7 +9,7 @@ import { DeleteLinkButton } from "@/components/delete-link-button";
 import { ProgressBar } from "@/components/progress-bar";
 import { StatusPill } from "@/components/status-pill";
 import { requireSession } from "@/lib/auth";
-import { filesBaseUrl, resolveFileDownloadHref } from "@/lib/b2";
+import { resolveFileDownloadHref } from "@/lib/b2";
 import {
   countActiveLinks,
   duplicateLink,
@@ -27,6 +27,7 @@ import {
   CONNECT_REQUIRED_MESSAGE,
   invoiceConnectGate,
 } from "@/lib/stripe-connect";
+import { isSensitiveIntakeTemplate } from "@/lib/templates";
 
 export default async function LinkDetailPage({
   params,
@@ -99,7 +100,11 @@ export default async function LinkDetailPage({
   const filesForItem = (itemId: string) =>
     linkFiles.filter((f) => f.checklistItemId === itemId);
   const extraFiles = linkFiles.filter((f) => !f.checklistItemId);
-  const cdnConfigured = Boolean(filesBaseUrl());
+  const showSensitiveHygiene =
+    link.type === "checklist" &&
+    (isSensitiveIntakeTemplate(link.templateKey) ||
+      items.some((i) => i.itemType === "file") ||
+      linkFiles.length > 0);
 
   async function closeLink() {
     "use server";
@@ -224,8 +229,19 @@ export default async function LinkDetailPage({
       <p className="mt-3 text-xs text-[color:var(--tb-slate-soft)]">
         Archive keeps files and frees an active slot. Delete permanently removes
         files and frees storage. Closed/archived links still count toward storage
-        until deleted.
+        until deleted. Closing a link stops new guest uploads and CDN downloads of
+        existing files; hard-delete when you are finished to erase stored objects.
       </p>
+      {showSensitiveHygiene && (
+        <p className="mt-3 rounded-lg border border-[color:var(--tb-orange)]/35 bg-[color:var(--tb-orange-soft)] px-3 py-2.5 text-sm text-[color:var(--tb-slate)]">
+          Sensitive document intake: when the client is done,{" "}
+          <strong className="font-semibold">Close</strong> the link so prior CDN
+          file URLs stop working, then{" "}
+          <strong className="font-semibold">Delete</strong> (hard-delete) when you
+          no longer need the files. You can still download from this dashboard after
+          close until you delete.
+        </p>
+      )}
 
       <div className="tb-panel mt-8">
         <p className="tb-label">Client link</p>
@@ -315,13 +331,10 @@ export default async function LinkDetailPage({
               files={extraFiles}
               emptyLabel="No extra uploads"
             />
-            {!cdnConfigured && linkFiles.length > 0 && (
+            {linkFiles.length > 0 && (
               <p className="mt-4 text-xs text-[color:var(--tb-slate-soft)]">
-                Downloads use a signed app link until{" "}
-                <code className="text-[0.7rem]">NEXT_PUBLIC_FILES_BASE_URL</code>{" "}
-                is set (e.g.{" "}
-                <code className="text-[0.7rem]">https://files.totebird.com</code>
-                ). See Settings.
+                Downloads use a signed app link (works after Close). Guest CDN URLs
+                stop serving when this link is closed or archived.
               </p>
             )}
           </div>

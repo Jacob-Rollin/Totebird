@@ -123,7 +123,8 @@ export default async function DashboardPage({
           </h2>
           <p className="mt-1 text-sm text-[color:var(--tb-slate-soft)]">
             Create a checklist from a built-in template — edit items before you
-            send.
+            send. Bookkeeping packs use file slots (not plaintext SSN/EIN); close
+            then hard-delete when the drop is finished.
           </p>
           <ul className="mt-4 grid gap-3 sm:grid-cols-3">
             {starterPacks.map((pack) => (

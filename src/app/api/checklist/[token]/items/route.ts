@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getLinkByToken, updateChecklistItem } from "@/lib/data";
+import { linkIsGuestWritable } from "@/lib/link-access";
 
 export async function POST(
   req: Request,
@@ -10,11 +11,7 @@ export async function POST(
   if (!link || link.type !== "checklist") {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-  if (
-    link.status === "closed" ||
-    link.status === "disabled" ||
-    link.status === "archived"
-  ) {
+  if (!linkIsGuestWritable(link.status)) {
     return NextResponse.json({ error: "Link closed" }, { status: 403 });
   }
 

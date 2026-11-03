@@ -1,16 +1,13 @@
 import { NextResponse } from "next/server";
 import { requireSession } from "@/lib/auth";
-import {
-  createPresignedDownload,
-  publicFileUrl,
-} from "@/lib/b2";
+import { createPresignedDownload } from "@/lib/b2";
 import { getFileById, getLinkById } from "@/lib/data";
 
 /**
  * Authenticated download for the link owner.
- * Prefers CDN (NEXT_PUBLIC_FILES_BASE_URL + storage key); otherwise
- * redirects to a short-lived B2 signed GET. Freelancers never need the
- * Backblaze console.
+ * Always redirects to a short-lived B2 signed GET (never the capability CDN URL).
+ * That way freelancers can still download after Close — CDN revokes for guests.
+ * Freelancers never need the Backblaze console.
  */
 export async function GET(
   _req: Request,
@@ -30,11 +27,6 @@ export async function GET(
   const link = await getLinkById(file.linkId);
   if (!link || link.userId !== session.id) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
-
-  const cdn = publicFileUrl(file.storageKey);
-  if (cdn) {
-    return NextResponse.redirect(cdn, 302);
   }
 
   const signed = await createPresignedDownload({

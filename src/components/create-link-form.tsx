@@ -2,7 +2,11 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { CHECKLIST_TEMPLATES, DUE_PRESETS } from "@/lib/templates";
+import {
+  CHECKLIST_TEMPLATES,
+  DUE_PRESETS,
+  isSensitiveIntakeTemplate,
+} from "@/lib/templates";
 import {
   ITEM_TYPE_OPTIONS,
   builderToText,
@@ -243,6 +247,15 @@ export function CreateLinkForm({
             {template && (
               <p className="mt-1 text-xs text-[color:var(--tb-slate-soft)]">
                 {template.description}
+              </p>
+            )}
+            {isSensitiveIntakeTemplate(templateKey) && (
+              <p className="mt-3 rounded-lg border border-[color:var(--tb-orange)]/35 bg-[color:var(--tb-orange-soft)] px-3 py-2.5 text-sm text-[color:var(--tb-slate)]">
+                Sensitive docs: prefer file-upload slots (PDFs). Do not ask for
+                SSN/EIN in plaintext text fields. When the client finishes,{" "}
+                <strong className="font-semibold">Close</strong> the link to stop
+                CDN downloads, then <strong className="font-semibold">Delete</strong>{" "}
+                to erase stored files.
               </p>
             )}
           </div>

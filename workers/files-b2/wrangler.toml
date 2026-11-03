@@ -23,3 +23,8 @@ B2_ENDPOINT = "<s3.REGION.backblazeb2.com>"
 BUCKET_NAME = "your-b2-bucket-name"
 ALLOW_LIST_BUCKET = "false"
 RCLONE_DOWNLOAD = "false"
+# App origin for revoke-on-close checks (no trailing slash)
+# TOTEBIRD_APP_ORIGIN = "https://www.totebird.com"
+# Shared secret — also set FILES_CDN_CHECK_SECRET on the app host.
+# Prefer: npx wrangler secret put FILES_CDN_CHECK_SECRET
+# FILES_CDN_CHECK_SECRET is a secret; do not put the real value here.

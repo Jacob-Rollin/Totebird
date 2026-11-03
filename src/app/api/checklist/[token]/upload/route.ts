@@ -6,6 +6,7 @@ import {
   storageUsedByUser,
 } from "@/lib/data";
 import { createPresignedUpload } from "@/lib/b2";
+import { linkIsGuestWritable } from "@/lib/link-access";
 import { canAcceptUpload, type Plan } from "@/lib/plans";
 
 export const dynamic = "force-dynamic";
@@ -20,11 +21,7 @@ export async function POST(
     if (!link || link.type !== "checklist") {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
-    if (
-      link.status === "closed" ||
-      link.status === "disabled" ||
-      link.status === "archived"
-    ) {
+    if (!linkIsGuestWritable(link.status)) {
       return NextResponse.json({ error: "Link closed" }, { status: 403 });
     }
 
@@ -87,11 +84,12 @@ export async function POST(
       storageKey: presign.key,
     });
 
+    // Do not return publicUrl/CDN key to guests — capability URLs leak via
+    // network tab; CDN still serves while the link is active if the key is known.
     return NextResponse.json({
       ok: true,
       fileId: file.id,
       uploadUrl: presign.uploadUrl,
-      publicUrl: presign.publicUrl,
       message: presign.message,
       demo: "demo" in presign ? presign.demo : false,
     });

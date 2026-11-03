@@ -1,2 +1,5 @@
 # Copy to .dev.vars for `npx wrangler dev` (never commit .dev.vars)
 B2_APPLICATION_KEY = "<your b2 application key>"
+# Optional revoke-on-close (match app FILES_CDN_CHECK_SECRET)
+# TOTEBIRD_APP_ORIGIN = "http://localhost:3000"
+# FILES_CDN_CHECK_SECRET = "<same random string as app>"

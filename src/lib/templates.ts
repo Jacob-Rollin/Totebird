@@ -42,15 +42,16 @@ export const CHECKLIST_TEMPLATES: ChecklistTemplate[] = [
     ],
   },
   {
-    key: "accounting-intake",
-    name: "Accounting intake",
-    description: "Tax IDs, statements, and docs for bookkeeping or tax prep.",
+    key: "bookkeeping-intake",
+    name: "Bookkeeping document intake",
+    description:
+      "Passwordless file drop for statements and returns — for bookkeeping, not tax-prep or IRS-ready packages. Prefer PDFs in file slots; do not type SSN/EIN into checklist text.",
     items: [
       { label: "Business legal name", itemType: "text", required: true },
-      { label: "EIN / tax ID (upload or type)", itemType: "text", required: true },
+      { label: "Bank statements (last 3 months, PDF)", itemType: "file", required: true },
       { label: "Prior year tax return (PDF)", itemType: "file", required: true },
-      { label: "Bank statements (last 3 months)", itemType: "file", required: true },
-      { label: "Payroll / 1099 summaries", itemType: "file", required: false },
+      { label: "W-2 / 1099 PDFs", itemType: "file", required: false },
+      { label: "Payroll summaries (PDF)", itemType: "file", required: false },
       { label: "Bookkeeping software access shared", itemType: "checkbox", required: false },
       { label: "Questions for kickoff call", itemType: "text", required: false },
     ],
@@ -97,8 +98,16 @@ export const CHECKLIST_TEMPLATES: ChecklistTemplate[] = [
 export const FEATURED_TEMPLATE_KEYS = [
   "seo-client",
   "design-handoff",
-  "accounting-intake",
+  "bookkeeping-intake",
 ] as const;
+
+/** Templates that collect sensitive financial docs — show close / hard-delete hygiene tips. */
+export const SENSITIVE_INTAKE_TEMPLATE_KEYS = ["bookkeeping-intake"] as const;
+
+export function isSensitiveIntakeTemplate(key: string | null | undefined) {
+  if (!key) return false;
+  return (SENSITIVE_INTAKE_TEMPLATE_KEYS as readonly string[]).includes(key);
+}
 
 export function getTemplate(key: string) {
   return CHECKLIST_TEMPLATES.find((t) => t.key === key) ?? null;
