@@ -5,10 +5,8 @@ import { redirect } from "next/navigation";
 import { ConnectActions } from "@/components/connect-actions";
 import { CustomDomainSettings } from "@/components/custom-domain-settings";
 import { requireSession } from "@/lib/auth";
-import {
-  checkCustomDomainDns,
-  normalizeHostname,
-} from "@/lib/custom-domains";
+import { normalizeHostname } from "@/lib/custom-domains";
+import { checkCustomDomainDns } from "@/lib/custom-domains-dns";
 import {
   clearCustomDomainForUser,
   getCustomDomainForUser,
