@@ -50,7 +50,7 @@ export default async function ClientChecklistPage({
         </div>
       </header>
 
-      <main className="tb-shell max-w-2xl py-8 sm:py-10">
+      <main className="tb-shell tb-flow py-8 sm:py-10">
         {closed ? (
           <div className="tb-panel text-[color:var(--tb-slate-soft)]">
             This link is no longer accepting updates.

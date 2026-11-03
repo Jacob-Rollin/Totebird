@@ -13,7 +13,7 @@ export default async function InvoicePrintPage({
   const { link, invoice, lineItems, owner } = bundle;
 
   return (
-    <div className="mx-auto max-w-2xl bg-white px-6 py-10 text-[color:var(--tb-ink)] print:px-0">
+    <div className="tb-flow bg-white px-6 py-10 text-[color:var(--tb-ink)] print:px-0">
       <div className="flex items-start justify-between gap-4 border-b border-[color:var(--tb-line)] pb-6">
         <div>
           <p className="text-sm uppercase tracking-[0.14em] text-[color:var(--tb-slate-soft)]">

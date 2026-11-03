@@ -54,7 +54,7 @@ export default async function ClientInvoicePage({
         </div>
       </header>
 
-      <main className="tb-shell max-w-lg py-8 sm:py-10">
+      <main className="tb-shell tb-flow py-8 sm:py-10">
         {q.canceled === "1" && (
           <p className="mb-4 rounded-lg bg-[color:var(--tb-orange-soft)] px-4 py-3 text-sm">
             Checkout canceled — you can try again anytime.
