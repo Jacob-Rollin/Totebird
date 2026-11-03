@@ -13,12 +13,19 @@ Project store doc `docs/cloudflare-b2-files-worker.md`.
 
 ## Deploy
 
-1. Edit `wrangler.toml` `[vars]`:
-   - `B2_APPLICATION_KEY_ID` — key ID (Netlify name: `B2_KEY_ID`)
-   - `B2_ENDPOINT` — host only, e.g. `s3.us-west-004.backblazeb2.com`
-   - `BUCKET_NAME` — exact bucket (placeholder in `wrangler.toml`: `your-b2-bucket-name`; override with the real name in the Cloudflare dashboard / `wrangler` — never commit the Netlify `B2_BUCKET` value)
-   - `TOTEBIRD_APP_ORIGIN` — `https://www.totebird.com` (no trailing slash)
-   - leave `ALLOW_LIST_BUCKET` / `RCLONE_DOWNLOAD` as `false`
+1. In Cloudflare → Worker `totebird-files-b2` → **Settings** → **Variables and Secrets**, set:
+
+   | Kind | Name | Notes |
+   |---|---|---|
+   | Secret | `B2_APPLICATION_KEY` | applicationKey — never commit |
+   | Secret | `FILES_CDN_CHECK_SECRET` | same random string as Netlify `FILES_CDN_CHECK_SECRET` |
+   | Variable or Secret | `B2_APPLICATION_KEY_ID` | keyID (Netlify: `B2_KEY_ID`) |
+   | Variable or Secret | `B2_ENDPOINT` | host only, e.g. `s3.us-west-004.backblazeb2.com` |
+   | Variable or Secret | `BUCKET_NAME` | exact bucket — never commit the production name |
+   | Variable or Secret | `TOTEBIRD_APP_ORIGIN` | `https://www.totebird.com` (no trailing slash) |
+
+   Prefer **Secret** for anything you do not want wiped by a misconfigured deploy. Plain Variables are OK once `keep_vars = true` is in `wrangler.toml` (this repo).
+
 2. Install and deploy:
 
 ```bash
@@ -32,21 +39,29 @@ npx wrangler deploy
 ```
 
 3. Cloudflare dashboard → this Worker → **Custom Domains** → add `files.totebird.com` (orange-proxied).
-4. On the app host set `FILES_CDN_CHECK_SECRET` (same value) and optionally  
+4. On the app host (Netlify) set `FILES_CDN_CHECK_SECRET` (same value) and optionally  
    `NEXT_PUBLIC_FILES_BASE_URL=https://files.totebird.com`, then redeploy.
+
+### Why vars disappeared after deploy
+
+By default `wrangler deploy` treats config as source of truth: it **deletes** dashboard plaintext Variables, then applies only `[vars]` from `wrangler.toml`. **Secrets are never deleted** by deploy.
+
+This Worker sets `keep_vars = true` so dashboard-only Variables survive. Keys that *are* listed under `[vars]` still get overwritten on every deploy — that is why real B2 / origin values live in the dashboard (or as Secrets), not as committed placeholders.
 
 ## Secrets / vars
 
-| Kind | Name | Notes |
-|---|---|---|
-| Secret | `B2_APPLICATION_KEY` | applicationKey — never commit |
-| Secret | `FILES_CDN_CHECK_SECRET` | shared with app `FILES_CDN_CHECK_SECRET` |
-| Var | `B2_APPLICATION_KEY_ID` | keyID |
-| Var | `B2_ENDPOINT` | host only (no `https://`) |
-| Var | `BUCKET_NAME` | bucket name, not `$path` |
-| Var | `TOTEBIRD_APP_ORIGIN` | app origin for status checks |
-| Var | `ALLOW_LIST_BUCKET` | `false` |
-| Var | `RCLONE_DOWNLOAD` | `false` |
+| Kind | Name | Survives `wrangler deploy`? | Notes |
+|---|---|---|---|
+| Secret | `B2_APPLICATION_KEY` | Always | applicationKey — never commit |
+| Secret | `FILES_CDN_CHECK_SECRET` | Always | shared with app `FILES_CDN_CHECK_SECRET` |
+| Var / Secret | `B2_APPLICATION_KEY_ID` | With `keep_vars` (or as Secret) | keyID |
+| Var / Secret | `B2_ENDPOINT` | With `keep_vars` (or as Secret) | host only (no `https://`) |
+| Var / Secret | `BUCKET_NAME` | With `keep_vars` (or as Secret) | bucket name, not `$path` |
+| Var / Secret | `TOTEBIRD_APP_ORIGIN` | With `keep_vars` (or as Secret) | app origin for status checks |
+| Var (in toml) | `ALLOW_LIST_BUCKET` | Yes (from toml) | `false` |
+| Var (in toml) | `RCLONE_DOWNLOAD` | Yes (from toml) | `false` |
+
+**App host note:** the Next.js site is on **Netlify**, not a Wrangler Worker. Netlify env vars are unrelated to this wipe. Only this files Worker is affected by `wrangler deploy`.
 
 ## Test
 

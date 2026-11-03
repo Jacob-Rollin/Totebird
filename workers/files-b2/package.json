@@ -5,7 +5,7 @@
   "description": "Cloudflare Worker: serve private Backblaze B2 objects at files.totebird.com (GET/HEAD only)",
   "main": "index.js",
   "scripts": {
-    "deploy": "wrangler deploy",
+    "deploy": "wrangler deploy --keep-vars",
     "dev": "wrangler dev",
     "format": "prettier --write '**/*.{js,json,md,toml}'"
   },
