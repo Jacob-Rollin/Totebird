@@ -57,8 +57,13 @@ export default async function ClientChecklistPage({
           </div>
         ) : (
           <>
-            <p className="mb-6 text-[color:var(--tb-slate-soft)]">
+            <p className="mb-4 text-[color:var(--tb-slate-soft)]">
               No account needed — answer items and drop files below.
+            </p>
+            <p className="mb-6 rounded-lg border border-[color:var(--tb-line)] bg-white px-3 py-2.5 text-sm text-[color:var(--tb-slate-soft)]">
+              Uploads use HTTPS and private storage. Access is via this private
+              link — when you&apos;re done, ask your freelancer to close it (CDN
+              downloads stop) and hard-delete when they no longer need the files.
             </p>
             <ChecklistClient
               token={token}

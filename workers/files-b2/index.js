@@ -2,10 +2,82 @@
 // Totebird: proxy private Backblaze B2 (S3-compatible) for GET/HEAD downloads
 // at files.totebird.com. Uploads stay on app → B2 presigned PUT (not this Worker).
 //
+// Revoke-on-close: object keys are users/{userId}/links/{linkId}/…
+// Before streaming, the Worker asks the app whether that link is still active
+// (FILES_CDN_CHECK_SECRET + TOTEBIRD_APP_ORIGIN). Closed/archived/disabled → 403.
+// Freelancer downloads use the app’s signed B2 path, not this Worker.
+//
 // Vendored from https://github.com/backblaze-b2-samples/cloudflare-b2
 // (itself adapted from https://github.com/obezuk/worker-signed-s3-template)
 //
 import { AwsClient } from 'aws4fetch'
+
+/** Parse linkId from Totebird storage keys: users/{userId}/links/{linkId}/… */
+function linkIdFromObjectKey(path) {
+    const m = String(path || '').match(/^users\/[^/]+\/links\/([^/]+)\//);
+    return m ? m[1] : null;
+}
+
+/**
+ * Ask the Next.js app whether CDN may serve objects for this link.
+ * Fail closed when check env is configured; if unset, allow (local/dev).
+ */
+async function assertLinkAllowsCdn(env, linkId) {
+    const origin = String(env['TOTEBIRD_APP_ORIGIN'] || '').replace(/\/$/, '');
+    const secret = String(env['FILES_CDN_CHECK_SECRET'] || '');
+    if (!origin || !secret) {
+        console.warn(
+            '[totebird-files-b2] TOTEBIRD_APP_ORIGIN / FILES_CDN_CHECK_SECRET unset — skipping revoke check',
+        );
+        return { ok: true, skipped: true };
+    }
+
+    const url = `${origin}/api/internal/cdn-access?linkId=${encodeURIComponent(linkId)}`;
+    let res;
+    try {
+        res = await fetch(url, {
+            method: 'GET',
+            headers: {
+                Authorization: `Bearer ${secret}`,
+                Accept: 'application/json',
+            },
+        });
+    } catch (err) {
+        console.error('[totebird-files-b2] cdn-access fetch failed', err);
+        return { ok: false, status: 503 };
+    }
+
+    if (res.status === 401 || res.status === 403) {
+        return { ok: false, status: 403 };
+    }
+    if (!res.ok) {
+        console.error('[totebird-files-b2] cdn-access HTTP', res.status);
+        return { ok: false, status: 503 };
+    }
+
+    let body;
+    try {
+        body = await res.json();
+    } catch {
+        return { ok: false, status: 503 };
+    }
+    if (!body || body.allow !== true) {
+        return { ok: false, status: 403 };
+    }
+    return { ok: true, skipped: false };
+}
+
+/** Sensitive docs: do not let CF edge cache bytes past close. */
+function withNoStore(response) {
+    const headers = new Headers(response.headers);
+    headers.set('Cache-Control', 'private, no-store');
+    headers.delete('Expires');
+    return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers,
+    });
+}
 
 const UNSIGNABLE_HEADERS = [
     // These headers appear in the request, but are never passed upstream
@@ -89,6 +161,24 @@ export default {
             return new Response(null, {
                 status: 404,
                 statusText: "Not Found"
+            });
+        }
+
+        // Revoke CDN when the owning link is closed / archived / disabled.
+        const linkId = linkIdFromObjectKey(path);
+        if (!linkId) {
+            // Only Totebird key layout is served; unknown shapes → 404
+            return new Response(null, {
+                status: 404,
+                statusText: "Not Found"
+            });
+        }
+        const access = await assertLinkAllowsCdn(env, linkId);
+        if (!access.ok) {
+            return new Response(null, {
+                status: access.status || 403,
+                statusText: access.status === 503 ? "Service Unavailable" : "Forbidden",
+                headers: { "Cache-Control": "private, no-store" },
             });
         }
 
@@ -187,12 +277,12 @@ export default {
 
             if (requestMethod === 'HEAD') {
                 // Original request was HEAD, so return a new Response without a body
-                return createHeadResponse(response);
+                return withNoStore(createHeadResponse(response));
             }
 
             // Return whatever response we have rather than an error response
             // This response cannot be aborted, otherwise it will raise an exception
-            return response;
+            return withNoStore(response);
         }
 
         // Send the signed request to B2
@@ -201,10 +291,10 @@ export default {
         if (requestMethod === 'HEAD') {
             const response = await fetchPromise;
             // Original request was HEAD, so return a new Response without a body
-            return createHeadResponse(response);
+            return withNoStore(createHeadResponse(response));
         }
 
-        // Return the upstream response unchanged
-        return fetchPromise;
+        // Strip public cache headers so close/archive revokes promptly
+        return withNoStore(await fetchPromise);
     },
 };

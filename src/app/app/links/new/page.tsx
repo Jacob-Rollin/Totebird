@@ -121,7 +121,9 @@ export default async function NewLinkPage({
         New {type === "invoice" ? "invoice" : "checklist"}
       </h1>
       <p className="mt-1 text-[color:var(--tb-slate-soft)]">
-        Clients open a passwordless link — no account needed.
+        Clients open a passwordless link — no account needed. For sensitive
+        document intakes, close the link when done (stops CDN downloads), then
+        hard-delete to erase files.
       </p>
       {type === "invoice" && (
         <div

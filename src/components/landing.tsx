@@ -227,7 +227,7 @@ export function LandingPage({
                 </p>
                 <ul className="mt-5 space-y-2 text-sm text-[color:var(--tb-slate)]">
                   <li>· Passwordless `/c/[token]` page</li>
-                  <li>· Starter templates (SEO, design, accounting…)</li>
+                  <li>· Starter templates (SEO, design, bookkeeping…)</li>
                   <li>· Progress visible in your dashboard</li>
                   <li>· Manual reminders (auto on Solo+)</li>
                 </ul>
@@ -413,12 +413,16 @@ export function LandingPage({
                   a: "No. Every checklist and invoice is a passwordless link. They open it, complete the ask, and leave.",
                 },
                 {
+                  q: "How do document intakes work?",
+                  a: "Passwordless document intake: send a private checklist link with file-upload slots. Clients upload over HTTPS into private storage. When you’re done, close the link so CDN downloads stop, then hard-delete to erase files. Totebird is not a tax vault — use it for bookkeeping document drops, not IRS-ready packages or plaintext SSN/EIN fields.",
+                },
+                {
                   q: "How big can uploads be?",
                   a: "Default cap is 10 MB per file (configurable). Free includes 250 MB total storage; Solo 50 GB; Studio 200 GB.",
                 },
                 {
                   q: "What are starter templates?",
-                  a: "Built-in checklist packs (SEO client, design handoff, accounting intake, and more). Pick one from the dashboard or create flow, then edit before you send.",
+                  a: "Built-in checklist packs (SEO client, design handoff, bookkeeping document intake, and more). Pick one from the dashboard or create flow, then edit before you send.",
                 },
                 {
                   q: "Who handles login, payments, and hosting security?",

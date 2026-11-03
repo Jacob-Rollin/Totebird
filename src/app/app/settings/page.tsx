@@ -262,13 +262,13 @@ export default async function SettingsPage({
           />
           <Row
             ok={hasFilesCdn || status.b2}
-            title="Files CDN (pretty download links)"
+            title="Files CDN (guest capability URLs)"
             hint={
               hasFilesCdn
-                ? `Client uploads open via ${filesBaseUrl()}.`
+                ? `CDN at ${filesBaseUrl()} serves objects only while the link is active; Close revokes CDN access. Your dashboard downloads always use a signed app link.`
                 : status.b2
-                  ? "Optional: set NEXT_PUBLIC_FILES_BASE_URL=https://files.totebird.com after the Cloudflare Worker is live. Until then, freelancers still download via a signed app link — no Backblaze console needed."
-                  : "Set B2 first; then optionally add NEXT_PUBLIC_FILES_BASE_URL for CDN download URLs."
+                  ? "Optional: set NEXT_PUBLIC_FILES_BASE_URL=https://files.totebird.com after the Cloudflare Worker is live (plus FILES_CDN_CHECK_SECRET on app + Worker). Freelancer downloads already use a signed app link."
+                  : "Set B2 first; then optionally add NEXT_PUBLIC_FILES_BASE_URL for guest CDN URLs."
             }
           />
           <Row

@@ -26,16 +26,15 @@ export function publicFileUrl(storageKey: string) {
 }
 
 /**
- * Href for freelancer Download: CDN + object key when configured,
- * otherwise the authenticated app download route (signed B2 GET).
+ * Href for freelancer Download: always the authenticated app route.
+ * CDN (`files.totebird.com/<key>`) is a guest capability URL that revokes when
+ * the link is closed/archived/disabled — owners need signed B2 access after close.
  */
 export function resolveFileDownloadHref(input: {
   fileId: string;
-  storageKey: string;
+  storageKey?: string;
 }) {
-  return (
-    publicFileUrl(input.storageKey) ?? `/api/files/${input.fileId}/download`
-  );
+  return `/api/files/${input.fileId}/download`;
 }
 
 /**
