@@ -154,11 +154,56 @@ export function invoiceConnectGate(user: {
   };
 }
 
+function stripeConnectErrorMessage(err: unknown): string {
+  if (!err || typeof err !== "object") {
+    return "Stripe Connect request failed. Try again, or check Stripe Dashboard → Connect.";
+  }
+  const e = err as {
+    message?: string;
+    code?: string;
+    type?: string;
+    raw?: { message?: string; code?: string };
+  };
+  const message = (e.message || e.raw?.message || "").trim();
+  const code = e.code || e.raw?.code || "";
+  const lower = message.toLowerCase();
+
+  if (
+    lower.includes("signed up for connect") ||
+    lower.includes("connect is not enabled") ||
+    lower.includes("responsible platform") ||
+    code === "platform_account_required"
+  ) {
+    return (
+      "Stripe Connect is not fully enabled on this Stripe account. " +
+      "In Stripe Dashboard (Test mode): Connect → Get started / complete the platform profile, then retry."
+    );
+  }
+
+  if (
+    lower.includes("invalid url") ||
+    lower.includes("refresh_url") ||
+    lower.includes("return_url")
+  ) {
+    return (
+      `Stripe rejected the onboarding return URL. Confirm NEXT_PUBLIC_APP_URL is https://www.totebird.com ` +
+      `(current appUrl fallback: ${appUrl()}).`
+    );
+  }
+
+  if (message) {
+    return `Stripe error: ${message}`;
+  }
+  return "Stripe Connect request failed. Check Test-mode keys and Connect setup in the Dashboard.";
+}
+
 /** Create (or reuse) an Express account and return an Account Link URL. */
 export async function createExpressOnboardingLink(input: {
   userId: string;
   email: string;
   existingAccountId?: string | null;
+  /** Prefer request Host (www vs apex) over a stale NEXT_PUBLIC_APP_URL. */
+  returnBaseUrl?: string | null;
 }): Promise<{
   ok: boolean;
   demo: boolean;
@@ -173,7 +218,7 @@ export async function createExpressOnboardingLink(input: {
       url: null,
       accountId: input.existingAccountId ?? null,
       message:
-        "STRIPE_CONNECT_ENABLED is not true. Enable Connect in Stripe Dashboard (Test), then set the flag.",
+        "STRIPE_CONNECT_ENABLED is not true. Enable Connect in Stripe Dashboard (Test), then set the flag on Netlify and redeploy.",
     };
   }
 
@@ -184,43 +229,55 @@ export async function createExpressOnboardingLink(input: {
       demo: true,
       url: null,
       accountId: null,
-      message: "Stripe is not configured.",
+      message: "Stripe is not configured (missing STRIPE_SECRET_KEY).",
     };
   }
 
+  const base = (input.returnBaseUrl || appUrl()).replace(/\/$/, "");
   let accountId = input.existingAccountId ?? null;
 
-  if (!accountId) {
-    // Express account — Stripe-hosted onboarding (best free-tier MVP path)
-    const account = await stripe.accounts.create({
-      type: "express",
-      email: input.email,
-      capabilities: {
-        card_payments: { requested: true },
-        transfers: { requested: true },
-      },
-      metadata: { totebirdUserId: input.userId },
-      business_profile: {
-        product_description: "Freelance services invoiced via Totebird",
-      },
+  try {
+    if (!accountId) {
+      // Express account — Stripe-hosted onboarding (best free-tier MVP path)
+      const account = await stripe.accounts.create({
+        type: "express",
+        email: input.email,
+        capabilities: {
+          card_payments: { requested: true },
+          transfers: { requested: true },
+        },
+        metadata: { totebirdUserId: input.userId },
+        business_profile: {
+          product_description: "Freelance services invoiced via Totebird",
+        },
+      });
+      accountId = account.id;
+    }
+
+    const link = await stripe.accountLinks.create({
+      account: accountId,
+      refresh_url: `${base}/app/settings?connect=refresh`,
+      return_url: `${base}/app/settings?connect=return`,
+      type: "account_onboarding",
     });
-    accountId = account.id;
+
+    return {
+      ok: true,
+      demo: false,
+      url: link.url,
+      accountId,
+      message: "Redirecting to Stripe Express onboarding.",
+    };
+  } catch (err) {
+    console.error("[totebird] createExpressOnboardingLink failed", err);
+    return {
+      ok: false,
+      demo: false,
+      url: null,
+      accountId,
+      message: stripeConnectErrorMessage(err),
+    };
   }
-
-  const link = await stripe.accountLinks.create({
-    account: accountId,
-    refresh_url: `${appUrl()}/app/settings?connect=refresh`,
-    return_url: `${appUrl()}/app/settings?connect=return`,
-    type: "account_onboarding",
-  });
-
-  return {
-    ok: true,
-    demo: false,
-    url: link.url,
-    accountId,
-    message: "Redirecting to Stripe Express onboarding.",
-  };
 }
 
 /** Refresh Express account flags from Stripe (call on return URL / webhook). */
