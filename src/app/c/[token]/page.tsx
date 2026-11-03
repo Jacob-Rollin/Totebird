@@ -81,7 +81,7 @@ export default async function ClientChecklistPage({
           </>
         )}
         <p className="mt-10 text-center text-xs text-[color:var(--tb-slate-soft)]">
-          Powered by Totebird
+          Powered by Totebird · Delivered on Cloudflare
         </p>
       </main>
     </div>

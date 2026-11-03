@@ -167,7 +167,7 @@ export function LandingPage({
                 </Link>
               </div>
               <p className="mt-5 text-sm text-[color:var(--tb-slate-soft)]">
-                Free forever for 5 active links · No SMS · Stripe-ready invoices
+                Free forever for 3 active links · No SMS · Stripe-ready invoices
               </p>
             </div>
 
@@ -314,8 +314,8 @@ export function LandingPage({
                   price: "$0",
                   note: "forever",
                   features: [
-                    "5 active links",
-                    "500 MB storage",
+                    "3 active links",
+                    "250 MB storage",
                     "Checklist starter templates",
                     "Manual reminders",
                     "“Powered by Totebird”",
@@ -398,6 +398,9 @@ export function LandingPage({
                 </article>
               ))}
             </div>
+            <p className="mt-8 text-center text-sm text-[color:var(--tb-slate-soft)]">
+              Billing &amp; payouts via Stripe
+            </p>
           </div>
         </section>
 
@@ -442,11 +445,15 @@ export function LandingPage({
                 },
                 {
                   q: "How big can uploads be?",
-                  a: "Default cap is 10 MB per file (configurable). Free includes 500 MB total storage; Solo 50 GB; Studio 200 GB.",
+                  a: "Default cap is 10 MB per file (configurable). Free includes 250 MB total storage; Solo 50 GB; Studio 200 GB.",
                 },
                 {
                   q: "What are starter templates?",
                   a: "Built-in checklist packs (SEO client, design handoff, accounting intake, and more). Pick one from the dashboard or create flow, then edit before you send.",
+                },
+                {
+                  q: "Who handles login, payments, and hosting security?",
+                  a: "Freelancer sign-in is Clerk. Invoice Checkout and Connect payouts are Stripe. App and edge delivery run on Cloudflare. Totebird never stores full card numbers.",
                 },
                 {
                   q: "Do Studio custom domains work yet?",
@@ -566,8 +573,11 @@ export function LandingPage({
           </div>
         </div>
         <div className="border-t border-[color:var(--tb-line)]">
-          <div className="tb-shell flex flex-wrap items-center justify-between gap-2 py-4 text-xs text-[color:var(--tb-slate-soft)]">
+          <div className="tb-shell flex flex-col gap-2 py-4 text-xs text-[color:var(--tb-slate-soft)] sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
             <span>© {new Date().getFullYear()} Totebird</span>
+            <span className="tracking-wide">
+              Cloudflare · Clerk · Stripe
+            </span>
             <span>Built for freelancers who hate chasing files.</span>
           </div>
         </div>

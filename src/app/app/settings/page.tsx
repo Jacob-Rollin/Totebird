@@ -279,7 +279,8 @@ export default async function SettingsPage({
         <h2 className="font-semibold">Payouts — Stripe Connect</h2>
         <p className="mt-1 text-sm text-[color:var(--tb-slate-soft)]">
           Freelancer invoice money should land in your Stripe Express account
-          (Direct charges). Billing subscriptions stay on the platform account.
+          (Direct charges). Billing subscriptions stay on the platform Stripe
+          account. Totebird never stores full card numbers.
         </p>
         <div className="mt-4">
           <ConnectActions
@@ -290,6 +291,9 @@ export default async function SettingsPage({
             statusMessage={connect.message}
           />
         </div>
+        <p className="mt-4 text-xs text-[color:var(--tb-slate-soft)]">
+          Powered by Stripe Connect
+        </p>
       </div>
 
       {isStudio ? (

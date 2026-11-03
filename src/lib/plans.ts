@@ -32,14 +32,14 @@ export const PLAN_LIMITS: Record<
   }
 > = {
   free: {
-    activeLinks: 5,
-    storageBytes: 500 * 1024 * 1024,
+    activeLinks: 3,
+    storageBytes: 250 * 1024 * 1024,
     label: "Free",
     priceMonthly: 0,
     priceYearly: 0,
     features: [
-      "5 active links",
-      "500 MB storage",
+      "3 active links",
+      "250 MB storage",
       "Manual reminders",
       "1% invoice platform fee",
       "“Powered by Totebird”",
@@ -80,7 +80,7 @@ export function canCreateLink(plan: Plan, activeCount: number) {
   return activeCount < PLAN_LIMITS[plan].activeLinks;
 }
 
-/** App-enforced plan storage cap (Free 500MB / Solo 50GB / Studio 200GB). */
+/** App-enforced plan storage cap (Free 250MB / Solo 50GB / Studio 200GB). */
 export function canAcceptUpload(
   plan: Plan,
   usedBytes: number,

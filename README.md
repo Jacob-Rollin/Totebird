@@ -127,7 +127,7 @@ See [`.env.example`](./.env.example). Create Stripe Products/Prices for Solo ($1
 
 ## Features (keyless-complete)
 
-- **Plan limits** — Free = 5 active links + 500 MB (Solo 50 links / 50 GB · Studio unlimited fair use / 200 GB); only `active` links count toward slots
+- **Plan limits** — Free = 3 active links + 250 MB (Solo 50 links / 50 GB · Studio unlimited fair use / 200 GB); only `active` links count toward slots
 - **Billing** — `/app/billing` upgrade Checkout + Customer Portal (needs Stripe + Price IDs); demo plan switch without keys; Connect Express scaffold on Settings
 - **Checklist** — templates, item types, progress %, duplicate / archive
 - **Invoice** — line items, due presets, mark paid manually, print view
@@ -185,7 +185,7 @@ Follow [`.env.example`](./.env.example) and the Project B2 / platform setup guid
 
 | Tier | Price | Caps |
 |---|---|---|
-| Free | $0 | 5 active links, 500 MB |
+| Free | $0 | 3 active links, 250 MB |
 | Solo | $19/mo ($190/yr) | 50 links, 50 GB |
 | Studio | $39/mo ($390/yr) | Unlimited fair use, 200 GB, custom domain settings |
 
