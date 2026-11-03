@@ -61,7 +61,7 @@ This Worker sets `keep_vars = true` so dashboard-only Variables survive. Keys th
 | Var (in toml) | `ALLOW_LIST_BUCKET` | Yes (from toml) | `false` |
 | Var (in toml) | `RCLONE_DOWNLOAD` | Yes (from toml) | `false` |
 
-**App host note:** the Next.js site is on **Netlify**, not a Wrangler Worker. Netlify env vars are unrelated to this wipe. Only this files Worker is affected by `wrangler deploy`.
+**App host note:** the Next.js app is a **separate** Worker named `totebird` (OpenNext + Workers Builds, root `wrangler.jsonc` with its own `keep_vars`). Wiping vars on `totebird` does **not** change this files Worker, and vice versa. Re-enter secrets on the Worker that lost them.
 
 ## Test
 

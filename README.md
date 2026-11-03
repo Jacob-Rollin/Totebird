@@ -4,7 +4,13 @@ Passwordless client links for freelancers — **checklist / file-drop** and **in
 
 > One link out. Everything flies home.
 
-## Deploy on Netlify (you already have a site named **totebird**)
+## Deploy host (Cloudflare Workers)
+
+Production app is Worker **`totebird`** (OpenNext + Workers Builds). Files CDN is Worker **`totebird-files-b2`**. See **[`CLOUDFLARE.md`](./CLOUDFLARE.md)** for env vars / `keep_vars` (deploys wipe plaintext Variables unless Secrets or `keep_vars`).
+
+Netlify notes below are historical / rollback. Prefer Cloudflare dashboard Variables & Secrets + Build variables for `NEXT_PUBLIC_*`.
+
+## Deploy on Netlify (legacy / rollback — site was named **totebird**)
 
 Practical steps only. Full click-path walkthrough for Neon/Clerk/B2/Resend/Stripe lives in the Project **platform setup guide** — use this README for repo/branch/env/cron.
 

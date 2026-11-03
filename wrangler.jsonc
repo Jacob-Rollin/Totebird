@@ -1,0 +1,36 @@
+/**
+ * Totebird Next.js app Worker (OpenNext on Cloudflare Workers).
+ * Service name in dashboard: `totebird` (Workers Builds).
+ *
+ * keep_vars: Workers Builds / wrangler deploy otherwise DELETE dashboard
+ * plaintext Variables, then apply only [vars] from this file. Secrets survive.
+ * Do NOT put real secrets or production env values under "vars" here.
+ *
+ * Files CDN Worker is separate: workers/files-b2/wrangler.toml (also keep_vars).
+ *
+ * Workers Builds → Settings → Build → Deploy command should be one of:
+ *   npx opennextjs-cloudflare deploy -- --keep-vars
+ *   npm run deploy:cf
+ *   npx wrangler deploy --keep-vars
+ * (after a successful OpenNext build that produces .open-next/)
+ */
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "totebird",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2024-12-30",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  // Preserve Cloudflare-dashboard plaintext Variables across deploys.
+  // https://developers.cloudflare.com/workers/wrangler/configuration/#source-of-truth
+  "keep_vars": true,
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "totebird"
+    }
+  ]
+}
