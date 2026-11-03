@@ -1,8 +1,20 @@
 import Link from "next/link";
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ConnectActions } from "@/components/connect-actions";
+import { CustomDomainSettings } from "@/components/custom-domain-settings";
 import { requireSession } from "@/lib/auth";
-import { updateUserModeration } from "@/lib/data";
+import {
+  checkCustomDomainDns,
+  normalizeHostname,
+} from "@/lib/custom-domains";
+import {
+  clearCustomDomainForUser,
+  getCustomDomainForUser,
+  updateCustomDomainStatus,
+  updateUserModeration,
+  upsertCustomDomainForUser,
+} from "@/lib/data";
 import { filesBaseUrl } from "@/lib/b2";
 import {
   integrationStatus,
@@ -83,6 +95,68 @@ export default async function SettingsPage({
     status.b2 &&
     status.resend;
   const connect = connectFeatureStatus(session);
+  const isStudio = session.plan === "studio";
+  const customDomain = isStudio
+    ? await getCustomDomainForUser(session.id)
+    : null;
+
+  async function saveCustomDomain(formData: FormData) {
+    "use server";
+    const s = await requireSession();
+    if (!s) return { ok: false as const, error: "Sign in required." };
+    if (s.plan !== "studio") {
+      return { ok: false as const, error: "Custom domains are a Studio perk." };
+    }
+    const hostname = normalizeHostname(String(formData.get("hostname") || ""));
+    if (!hostname) {
+      return {
+        ok: false as const,
+        error: "Enter a valid hostname like portal.yourbrand.com.",
+      };
+    }
+    try {
+      await upsertCustomDomainForUser({ userId: s.id, hostname });
+      revalidatePath("/app/settings");
+      return { ok: true as const };
+    } catch (err) {
+      console.error("[totebird] save custom domain", err);
+      return {
+        ok: false as const,
+        error: "Could not save. Hostname may already be taken.",
+      };
+    }
+  }
+
+  async function checkCustomDomain() {
+    "use server";
+    const s = await requireSession();
+    if (!s) return { ok: false as const, error: "Sign in required." };
+    if (s.plan !== "studio") {
+      return { ok: false as const, error: "Custom domains are a Studio perk." };
+    }
+    const row = await getCustomDomainForUser(s.id);
+    if (!row) {
+      return { ok: false as const, error: "Save a hostname first." };
+    }
+    const result = await checkCustomDomainDns(row);
+    await updateCustomDomainStatus(row.id, {
+      status: result.status,
+      lastCheckedAt: new Date(),
+      verifiedAt: result.status === "verified" ? new Date() : null,
+      statusDetail: result.detail,
+    });
+    revalidatePath("/app/settings");
+    return { ok: true as const, detail: result.detail };
+  }
+
+  async function clearCustomDomain() {
+    "use server";
+    const s = await requireSession();
+    if (!s) return { ok: false as const, error: "Sign in required." };
+    await clearCustomDomainForUser(s.id);
+    revalidatePath("/app/settings");
+    return { ok: true as const };
+  }
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -217,6 +291,33 @@ export default async function SettingsPage({
           />
         </div>
       </div>
+
+      {isStudio ? (
+        <div className="tb-panel mt-6">
+          <CustomDomainSettings
+            domain={customDomain}
+            saveAction={saveCustomDomain}
+            checkAction={checkCustomDomain}
+            clearAction={clearCustomDomain}
+          />
+        </div>
+      ) : (
+        <div className="tb-panel mt-6">
+          <h2 className="font-semibold">Custom domain</h2>
+          <p className="mt-1 text-sm text-[color:var(--tb-slate-soft)]">
+            Studio plans can map a client-facing hostname and get DNS
+            instructions.{" "}
+            <Link
+              href="/app/billing"
+              className="font-semibold text-[color:var(--tb-orange-deep)]"
+            >
+              Upgrade to Studio
+            </Link>{" "}
+            when you want brand overlay readiness (host mapping comes after the
+            Cloudflare cutover).
+          </p>
+        </div>
+      )}
 
       <div className="tb-panel mt-6 space-y-2 text-sm">
         <p>

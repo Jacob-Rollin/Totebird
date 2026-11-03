@@ -22,13 +22,15 @@ export const metadata = { title: "New link" };
 export default async function NewLinkPage({
   searchParams,
 }: {
-  searchParams: Promise<{ type?: string; error?: string }>;
+  searchParams: Promise<{ type?: string; error?: string; template?: string }>;
 }) {
   const session = await requireSession();
   if (!session) redirect("/sign-in");
 
   const params = await searchParams;
   const type = params.type === "invoice" ? "invoice" : "checklist";
+  const initialTemplateKey =
+    type === "checklist" ? String(params.template || "").trim() : "";
   const active = await countActiveLinks(session.id);
   if (!canCreateLink(session.plan, active)) {
     redirect("/app?limit=1");
@@ -184,6 +186,7 @@ export default async function NewLinkPage({
           invoiceDisabledHint={
             invoiceBlocked ? CONNECT_REQUIRED_MESSAGE : null
           }
+          initialTemplateKey={initialTemplateKey}
         />
       </div>
     </div>

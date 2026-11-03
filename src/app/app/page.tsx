@@ -19,6 +19,7 @@ import {
   PLAN_LIMITS,
   storageUsageMessage,
 } from "@/lib/plans";
+import { getFeaturedTemplates } from "@/lib/templates";
 
 export const metadata = { title: "Dashboard" };
 
@@ -56,6 +57,7 @@ export default async function DashboardPage({
 
   const visible = links.filter((l) => l.status !== "archived");
   const archived = links.filter((l) => l.status === "archived");
+  const starterPacks = getFeaturedTemplates();
 
   return (
     <div>
@@ -111,6 +113,38 @@ export default async function DashboardPage({
           </Link>
           .
         </p>
+      )}
+
+      {canCreate && (
+        <section className="mt-8">
+          <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-[color:var(--tb-slate-soft)]">
+            Starter packs
+          </h2>
+          <p className="mt-1 text-sm text-[color:var(--tb-slate-soft)]">
+            Create a checklist from a built-in template — edit items before you
+            send.
+          </p>
+          <ul className="mt-4 grid gap-3 sm:grid-cols-3">
+            {starterPacks.map((pack) => (
+              <li key={pack.key}>
+                <Link
+                  href={`/app/links/new?type=checklist&template=${pack.key}`}
+                  className="block rounded-xl border border-[color:var(--tb-line)] bg-white px-4 py-4 transition hover:border-[color:var(--tb-orange)]/50"
+                >
+                  <p className="font-semibold text-[color:var(--tb-ink)]">
+                    {pack.name}
+                  </p>
+                  <p className="mt-1 text-sm text-[color:var(--tb-slate-soft)]">
+                    {pack.description}
+                  </p>
+                  <p className="mt-3 text-sm font-medium text-[color:var(--tb-orange-deep)]">
+                    Use template →
+                  </p>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
       <div className="tb-panel mt-8 overflow-x-auto p-0">

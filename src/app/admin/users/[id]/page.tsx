@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { StatusPill } from "@/components/status-pill";
 import {
+  getCustomDomainForUser,
   getUserDetail,
   updateUserModeration,
 } from "@/lib/data";
@@ -16,6 +17,7 @@ export default async function AdminUserDetailPage({
   const detail = await getUserDetail(id);
   if (!detail) notFound();
   const { user, links } = detail;
+  const customDomain = await getCustomDomainForUser(id);
 
   async function toggleDisable() {
     "use server";
@@ -61,6 +63,24 @@ export default async function AdminUserDetailPage({
       </div>
       {user.flagReason && (
         <p className="mt-3 text-sm text-rose-700">{user.flagReason}</p>
+      )}
+
+      {customDomain && (
+        <div className="tb-panel mt-6 text-sm">
+          <p className="font-semibold">Custom domain</p>
+          <p className="mt-1 text-[color:var(--tb-slate-soft)]">
+            <code>{customDomain.hostname}</code> ·{" "}
+            <span className="capitalize">{customDomain.status}</span>
+            {customDomain.verifiedAt
+              ? ` · verified ${formatDate(customDomain.verifiedAt)}`
+              : ""}
+          </p>
+          {customDomain.statusDetail && (
+            <p className="mt-2 text-[color:var(--tb-slate-soft)]">
+              {customDomain.statusDetail}
+            </p>
+          )}
+        </div>
       )}
 
       <div className="tb-panel mt-8 overflow-x-auto p-0">

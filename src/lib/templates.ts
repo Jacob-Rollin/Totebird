@@ -11,7 +11,50 @@ export type ChecklistTemplate = {
   items: TemplateItem[];
 };
 
+/** Built-in starter packs — create a checklist from any of these. */
 export const CHECKLIST_TEMPLATES: ChecklistTemplate[] = [
+  {
+    key: "seo-client",
+    name: "SEO client onboarding",
+    description: "Access, keywords, and content assets for an SEO engagement.",
+    items: [
+      { label: "Google Search Console access shared", itemType: "checkbox", required: true },
+      { label: "Analytics / GA4 access shared", itemType: "checkbox", required: true },
+      { label: "CMS / hosting login shared", itemType: "checkbox", required: true },
+      { label: "Primary keywords / topics", itemType: "text", required: true },
+      { label: "Competitor URLs", itemType: "text", required: false },
+      { label: "Existing content inventory (CSV or doc)", itemType: "file", required: false },
+      { label: "Brand voice notes", itemType: "text", required: false },
+    ],
+  },
+  {
+    key: "design-handoff",
+    name: "Design handoff",
+    description: "Brand files, approvals, and assets before build or launch.",
+    items: [
+      { label: "Final logo pack (SVG + PNG)", itemType: "file", required: true },
+      { label: "Brand colors (hex)", itemType: "text", required: true },
+      { label: "Typography / font files or links", itemType: "text", required: true },
+      { label: "Figma / design file link", itemType: "text", required: true },
+      { label: "Approved mockups signed off", itemType: "checkbox", required: true },
+      { label: "Icon / illustration pack", itemType: "file", required: false },
+      { label: "Export notes for developers", itemType: "text", required: false },
+    ],
+  },
+  {
+    key: "accounting-intake",
+    name: "Accounting intake",
+    description: "Tax IDs, statements, and docs for bookkeeping or tax prep.",
+    items: [
+      { label: "Business legal name", itemType: "text", required: true },
+      { label: "EIN / tax ID (upload or type)", itemType: "text", required: true },
+      { label: "Prior year tax return (PDF)", itemType: "file", required: true },
+      { label: "Bank statements (last 3 months)", itemType: "file", required: true },
+      { label: "Payroll / 1099 summaries", itemType: "file", required: false },
+      { label: "Bookkeeping software access shared", itemType: "checkbox", required: false },
+      { label: "Questions for kickoff call", itemType: "text", required: false },
+    ],
+  },
   {
     key: "web-design-kickoff",
     name: "Web design kickoff",
@@ -50,8 +93,21 @@ export const CHECKLIST_TEMPLATES: ChecklistTemplate[] = [
   },
 ];
 
+/** Featured packs shown on the freelancer dashboard. */
+export const FEATURED_TEMPLATE_KEYS = [
+  "seo-client",
+  "design-handoff",
+  "accounting-intake",
+] as const;
+
 export function getTemplate(key: string) {
   return CHECKLIST_TEMPLATES.find((t) => t.key === key) ?? null;
+}
+
+export function getFeaturedTemplates() {
+  return FEATURED_TEMPLATE_KEYS.map((key) => getTemplate(key)).filter(
+    (t): t is ChecklistTemplate => Boolean(t),
+  );
 }
 
 export type DuePreset = {
