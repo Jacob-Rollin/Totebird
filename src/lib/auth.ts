@@ -10,7 +10,8 @@ async function demoSession(): Promise<SessionUser> {
     email: "demo@totebird.local",
     name: "Demo Freelancer",
   });
-  return { ...user, isAdmin: true };
+  // Public/demo experience is freelancer-only — founder /admin is ADMIN_EMAIL.
+  return { ...user, isAdmin: false };
 }
 
 /**
