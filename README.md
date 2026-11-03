@@ -127,7 +127,7 @@ See [`.env.example`](./.env.example). Create Stripe Products/Prices for Solo ($1
 
 ## Features (keyless-complete)
 
-- **Plan limits** — Free = 3 active links + 250 MB storage (Solo 25 GB / Studio 100 GB); link create + upload caps enforced in app
+- **Plan limits** — Free = 3 active links + 250 MB (Solo 50 links / 50 GB · Studio unlimited fair use / 200 GB); only `active` links count toward slots
 - **Billing** — `/app/billing` upgrade Checkout + Customer Portal (needs Stripe + Price IDs); demo plan switch without keys; Connect Express scaffold on Settings
 - **Checklist** — templates, item types, progress %, duplicate / archive
 - **Invoice** — line items, due presets, mark paid manually, print view
@@ -152,7 +152,7 @@ npm run db:push            # Drizzle schema → Neon
 npm run prove:db           # insert/select/delete smoke
 ```
 
-Migrations also in `src/db/migrations/` (`0000_init` + `0001_enrich` + `0002_stripe_connect`).
+Migrations also in `src/db/migrations/` (`0000_init` + `0001_enrich` + `0002_stripe_connect` + `0003_custom_domains`). Studio custom domains: run the phone SQL in Project docs (`neon-custom-domains-table.sql`) if you are not using `db:push`.
 
 ### Clerk
 
@@ -186,9 +186,9 @@ Follow [`.env.example`](./.env.example) and the Project B2 / platform setup guid
 | Tier | Price | Caps |
 |---|---|---|
 | Free | $0 | 3 active links, 250 MB |
-| Solo | $19/mo ($190/yr) | 25 links, 25 GB |
-| Studio | $39/mo ($390/yr) | Unlimited fair use, 100 GB |
+| Solo | $19/mo ($190/yr) | 50 links, 50 GB |
+| Studio | $39/mo ($390/yr) | Unlimited fair use, 200 GB, custom domain settings |
 
 ## Deferred
 
-Briefs, testimonials, custom domains, multi-seat Studio polish, SMS, counsel-reviewed legal.
+Briefs, testimonials, custom-domain **host mapping** (DNS readiness is live for Studio), multi-seat Studio polish, SMS, counsel-reviewed legal.

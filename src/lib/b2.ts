@@ -1,4 +1,6 @@
 import {
+  DeleteObjectCommand,
+  DeleteObjectsCommand,
   GetObjectCommand,
   PutObjectCommand,
   S3Client,
@@ -6,6 +8,9 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { hasB2, maxUploadBytes, missingB2EnvNames } from "@/lib/env";
 import { newId } from "@/lib/ids";
+
+/** Max keys per S3 DeleteObjects request. */
+const DELETE_OBJECTS_BATCH = 1000;
 
 /** Optional CDN (Cloudflare Worker at files.totebird.com). */
 export function filesBaseUrl() {
@@ -190,6 +195,81 @@ export async function createPresignedDownload(input: {
     return {
       ok: false as const,
       error: "Could not create a download link. Check B2 env on Netlify.",
+    };
+  }
+}
+
+/** Delete one object from the shared B2 bucket (no-op when B2 isn’t configured). */
+export async function deleteObject(storageKey: string) {
+  return deleteObjects([storageKey]);
+}
+
+/**
+ * Batch-delete objects from the shared B2 bucket.
+ * Best-effort: logs per-key errors and continues; no-op when B2 isn’t configured.
+ */
+export async function deleteObjects(storageKeys: string[]) {
+  const keys = [
+    ...new Set(
+      storageKeys
+        .map((k) => (typeof k === "string" ? k.trim() : ""))
+        .filter(Boolean),
+    ),
+  ];
+  if (!keys.length) {
+    return { ok: true as const, deleted: 0, skipped: false as const };
+  }
+  if (!hasB2()) {
+    return { ok: true as const, deleted: 0, skipped: true as const };
+  }
+
+  try {
+    const s3 = client()!;
+    const bucket = process.env.B2_BUCKET!;
+    let deleted = 0;
+
+    if (keys.length === 1) {
+      await s3.send(
+        new DeleteObjectCommand({
+          Bucket: bucket,
+          Key: keys[0],
+        }),
+      );
+      return { ok: true as const, deleted: 1, skipped: false as const };
+    }
+
+    for (let i = 0; i < keys.length; i += DELETE_OBJECTS_BATCH) {
+      const chunk = keys.slice(i, i + DELETE_OBJECTS_BATCH);
+      const result = await s3.send(
+        new DeleteObjectsCommand({
+          Bucket: bucket,
+          Delete: {
+            Objects: chunk.map((Key) => ({ Key })),
+            Quiet: true,
+          },
+        }),
+      );
+      const errors = result.Errors?.length ?? 0;
+      deleted += chunk.length - errors;
+      if (errors) {
+        console.error(
+          "[totebird] B2 deleteObjects partial failures",
+          result.Errors,
+        );
+      }
+    }
+
+    return { ok: true as const, deleted, skipped: false as const };
+  } catch (err) {
+    console.error(
+      "[totebird] B2 deleteObjects failed",
+      err instanceof Error ? err.message : err,
+    );
+    return {
+      ok: false as const,
+      deleted: 0,
+      skipped: false as const,
+      error: "Could not delete files from storage. Check B2 env on Netlify.",
     };
   }
 }

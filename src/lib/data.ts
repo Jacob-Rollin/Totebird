@@ -4,6 +4,8 @@ import { demoStore, type CreateItemInput } from "@/db/demo-store";
 import {
   changelogEntries,
   checklistItems,
+  customDomains,
+  events,
   feedback,
   files,
   invoiceLineItems,
@@ -11,12 +13,14 @@ import {
   links,
   users,
   type ChangelogEntry,
+  type CustomDomain,
   type Feedback,
   type Invoice,
   type InvoiceLineItem,
   type Link,
   type User,
 } from "@/db/schema";
+import { deleteObjects } from "@/lib/b2";
 import { hasDatabase, isDemoMode } from "@/lib/env";
 import { newId, newToken } from "@/lib/ids";
 import {
@@ -600,6 +604,69 @@ export async function updateLinkStatus(id: string, status: Link["status"]) {
     .where(eq(links.id, id))
     .returning();
   return updated ?? null;
+}
+
+/**
+ * Permanent delete: B2 objects for the link, then cascade DB rows
+ * (files → checklist items / invoice lines → invoice → events → link).
+ * Soft statuses (close/archive/disable) stay separate — this frees storage.
+ */
+export async function hardDeleteLink(linkId: string): Promise<{
+  ok: boolean;
+  error?: string;
+}> {
+  if (!linkId) return { ok: false, error: "Missing link id" };
+
+  if (shouldUseDemoStore() || isSeededDemoLinkId(linkId)) {
+    const removed = demoStore.hardDeleteLink(linkId);
+    return removed
+      ? { ok: true }
+      : { ok: false, error: "Link not found" };
+  }
+
+  try {
+    const db = getDb();
+    const link = await db.query.links.findFirst({
+      where: eq(links.id, linkId),
+    });
+    if (!link) return { ok: false, error: "Link not found" };
+
+    const fileRows = await db.query.files.findMany({
+      where: eq(files.linkId, linkId),
+    });
+    const keys = fileRows.map((f) => f.storageKey).filter(Boolean);
+    if (keys.length) {
+      const b2 = await deleteObjects(keys);
+      if (!b2.ok) {
+        // Still cascade DB so plan storage accounting matches deleted files.
+        console.error(
+          "[totebird] hardDeleteLink continuing after B2 failure",
+          b2.error,
+        );
+      }
+    }
+
+    const inv = await db.query.invoices.findFirst({
+      where: eq(invoices.linkId, linkId),
+    });
+    if (inv) {
+      await db
+        .delete(invoiceLineItems)
+        .where(eq(invoiceLineItems.invoiceId, inv.id));
+      await db.delete(invoices).where(eq(invoices.id, inv.id));
+    }
+
+    // files → checklist_items (FK), then items, events, link
+    await db.delete(files).where(eq(files.linkId, linkId));
+    await db.delete(checklistItems).where(eq(checklistItems.linkId, linkId));
+    await db.delete(events).where(eq(events.linkId, linkId));
+    await db.delete(links).where(eq(links.id, linkId));
+
+    return { ok: true };
+  } catch (err) {
+    console.error("[totebird] hardDeleteLink failed", err);
+    return { ok: false, error: "Could not delete link" };
+  }
 }
 
 export async function getChecklistBundle(token: string) {
@@ -1267,4 +1334,127 @@ export async function publishFeedbackToChangelog(
   return { entry, deleted };
 }
 
-export type { ChangelogEntry, Feedback, Invoice, InvoiceLineItem, Link, User };
+function isMissingCustomDomainsRelation(err: unknown) {
+  return isMissingRelation(err, "custom_domains");
+}
+
+async function customDomainsDbTry<T>(
+  run: () => Promise<T>,
+  fallback: () => T | Promise<T>,
+): Promise<T> {
+  if (shouldUseDemoStore()) return fallback();
+  try {
+    return await run();
+  } catch (err) {
+    if (isMissingCustomDomainsRelation(err)) {
+      console.warn(
+        "[totebird] custom_domains table missing — run neon-custom-domains-table.sql in Neon SQL Editor.",
+      );
+      return fallback();
+    }
+    noteDbFailure(err);
+    return fallback();
+  }
+}
+
+export async function getCustomDomainForUser(userId: string) {
+  return customDomainsDbTry(
+    async () =>
+      (await getDb().query.customDomains.findFirst({
+        where: eq(customDomains.userId, userId),
+      })) ?? null,
+    () => demoStore.getCustomDomainByUserId(userId),
+  );
+}
+
+export async function upsertCustomDomainForUser(input: {
+  userId: string;
+  hostname: string;
+}): Promise<CustomDomain> {
+  const token = newToken();
+  return customDomainsDbTry(
+    async () => {
+      const db = getDb();
+      const existing = await db.query.customDomains.findFirst({
+        where: eq(customDomains.userId, input.userId),
+      });
+      if (existing) {
+        const [updated] = await db
+          .update(customDomains)
+          .set({
+            hostname: input.hostname,
+            verificationToken: token,
+            status: "pending",
+            statusDetail: null,
+            lastCheckedAt: null,
+            verifiedAt: null,
+            updatedAt: new Date(),
+          })
+          .where(eq(customDomains.id, existing.id))
+          .returning();
+        return updated;
+      }
+      const [created] = await db
+        .insert(customDomains)
+        .values({
+          id: newId("cdn"),
+          userId: input.userId,
+          hostname: input.hostname,
+          verificationToken: token,
+          status: "pending",
+        })
+        .returning();
+      return created;
+    },
+    () =>
+      demoStore.upsertCustomDomain({
+        userId: input.userId,
+        hostname: input.hostname,
+        verificationToken: token,
+      }),
+  );
+}
+
+export async function updateCustomDomainStatus(
+  id: string,
+  patch: Partial<
+    Pick<
+      CustomDomain,
+      "status" | "lastCheckedAt" | "verifiedAt" | "statusDetail"
+    >
+  >,
+) {
+  return customDomainsDbTry(
+    async () => {
+      const [updated] = await getDb()
+        .update(customDomains)
+        .set({ ...patch, updatedAt: new Date() })
+        .where(eq(customDomains.id, id))
+        .returning();
+      return updated ?? null;
+    },
+    () => demoStore.updateCustomDomain(id, patch),
+  );
+}
+
+export async function clearCustomDomainForUser(userId: string) {
+  return customDomainsDbTry(
+    async () => {
+      await getDb()
+        .delete(customDomains)
+        .where(eq(customDomains.userId, userId));
+      return true;
+    },
+    () => demoStore.clearCustomDomain(userId),
+  );
+}
+
+export type {
+  ChangelogEntry,
+  CustomDomain,
+  Feedback,
+  Invoice,
+  InvoiceLineItem,
+  Link,
+  User,
+};

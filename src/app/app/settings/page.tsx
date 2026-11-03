@@ -1,8 +1,21 @@
 import Link from "next/link";
+import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { ConnectActions } from "@/components/connect-actions";
+import { CustomDomainSettings } from "@/components/custom-domain-settings";
 import { requireSession } from "@/lib/auth";
-import { updateUserModeration } from "@/lib/data";
+import {
+  checkCustomDomainDns,
+  normalizeHostname,
+} from "@/lib/custom-domains";
+import {
+  clearCustomDomainForUser,
+  getCustomDomainForUser,
+  updateCustomDomainStatus,
+  updateUserModeration,
+  upsertCustomDomainForUser,
+} from "@/lib/data";
 import { filesBaseUrl } from "@/lib/b2";
 import {
   integrationStatus,
@@ -10,9 +23,23 @@ import {
   isStripeConnectEnabled,
 } from "@/lib/env";
 import { PLAN_LIMITS } from "@/lib/plans";
-import { connectFeatureStatus, refreshConnectAccount } from "@/lib/stripe-connect";
+import {
+  connectFeatureStatus,
+  createExpressOnboardingLink,
+  refreshConnectAccount,
+} from "@/lib/stripe-connect";
 
 export const metadata = { title: "Settings" };
+
+async function requestOriginFallback(): Promise<string> {
+  const h = await headers();
+  const proto = h.get("x-forwarded-proto")?.split(",")[0]?.trim() || "https";
+  const host =
+    h.get("x-forwarded-host")?.split(",")[0]?.trim() ||
+    h.get("host")?.trim();
+  if (host) return `${proto}://${host}`.replace(/\/$/, "");
+  return appUrl();
+}
 
 function Row({
   ok,
@@ -51,6 +78,7 @@ export default async function SettingsPage({
   const session = await requireSession();
   if (!session) redirect("/sign-in");
   const q = await searchParams;
+  let connectReturnError: string | null = null;
 
   // Return/refresh from Stripe Express Account Link
   if (
@@ -66,6 +94,22 @@ export default async function SettingsPage({
       });
       session.stripeConnectChargesEnabled = live.chargesEnabled;
       session.stripeConnectDetailsSubmitted = live.detailsSubmitted;
+    }
+
+    // Stripe docs: refresh_url must mint a new Account Link and redirect back.
+    if (q.connect === "refresh" && !session.stripeConnectChargesEnabled) {
+      const link = await createExpressOnboardingLink({
+        userId: session.id,
+        email: session.email,
+        existingAccountId: session.stripeConnectAccountId,
+        returnBaseUrl: await requestOriginFallback(),
+      });
+      if (link.ok && link.url) {
+        redirect(link.url);
+      }
+      connectReturnError =
+        link.message ||
+        "Could not resume Stripe onboarding. Use Connect Stripe below.";
     }
   }
 
@@ -83,6 +127,68 @@ export default async function SettingsPage({
     status.b2 &&
     status.resend;
   const connect = connectFeatureStatus(session);
+  const isStudio = session.plan === "studio";
+  const customDomain = isStudio
+    ? await getCustomDomainForUser(session.id)
+    : null;
+
+  async function saveCustomDomain(formData: FormData) {
+    "use server";
+    const s = await requireSession();
+    if (!s) return { ok: false as const, error: "Sign in required." };
+    if (s.plan !== "studio") {
+      return { ok: false as const, error: "Custom domains are a Studio perk." };
+    }
+    const hostname = normalizeHostname(String(formData.get("hostname") || ""));
+    if (!hostname) {
+      return {
+        ok: false as const,
+        error: "Enter a valid hostname like portal.yourbrand.com.",
+      };
+    }
+    try {
+      await upsertCustomDomainForUser({ userId: s.id, hostname });
+      revalidatePath("/app/settings");
+      return { ok: true as const };
+    } catch (err) {
+      console.error("[totebird] save custom domain", err);
+      return {
+        ok: false as const,
+        error: "Could not save. Hostname may already be taken.",
+      };
+    }
+  }
+
+  async function checkCustomDomain() {
+    "use server";
+    const s = await requireSession();
+    if (!s) return { ok: false as const, error: "Sign in required." };
+    if (s.plan !== "studio") {
+      return { ok: false as const, error: "Custom domains are a Studio perk." };
+    }
+    const row = await getCustomDomainForUser(s.id);
+    if (!row) {
+      return { ok: false as const, error: "Save a hostname first." };
+    }
+    const result = await checkCustomDomainDns(row);
+    await updateCustomDomainStatus(row.id, {
+      status: result.status,
+      lastCheckedAt: new Date(),
+      verifiedAt: result.status === "verified" ? new Date() : null,
+      statusDetail: result.detail,
+    });
+    revalidatePath("/app/settings");
+    return { ok: true as const, detail: result.detail };
+  }
+
+  async function clearCustomDomain() {
+    "use server";
+    const s = await requireSession();
+    if (!s) return { ok: false as const, error: "Sign in required." };
+    await clearCustomDomainForUser(s.id);
+    revalidatePath("/app/settings");
+    return { ok: true as const };
+  }
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -205,8 +311,23 @@ export default async function SettingsPage({
         <h2 className="font-semibold">Payouts — Stripe Connect</h2>
         <p className="mt-1 text-sm text-[color:var(--tb-slate-soft)]">
           Freelancer invoice money should land in your Stripe Express account
-          (Direct charges). Billing subscriptions stay on the platform account.
+          (Direct charges). Billing subscriptions stay on the platform Stripe
+          account. Totebird never stores full card numbers.
         </p>
+        {connectReturnError && (
+          <p
+            role="alert"
+            className="mt-3 rounded-lg border border-[color:var(--tb-orange-deep)] bg-[color:var(--tb-orange-soft)] px-3 py-2 text-sm text-[color:var(--tb-ink)]"
+          >
+            {connectReturnError}
+          </p>
+        )}
+        {q.connect === "return" && connect.state === "pending" && (
+          <p className="mt-3 rounded-lg border border-[color:var(--tb-line)] bg-white px-3 py-2 text-sm text-[color:var(--tb-slate)]">
+            Stripe onboarding saved for later — finish it with{" "}
+            <strong>Resume Stripe onboarding</strong> when ready.
+          </p>
+        )}
         <div className="mt-4">
           <ConnectActions
             connectEnabled={status.stripeConnect}
@@ -216,7 +337,37 @@ export default async function SettingsPage({
             statusMessage={connect.message}
           />
         </div>
+        <p className="mt-4 text-xs text-[color:var(--tb-slate-soft)]">
+          Powered by Stripe Connect
+        </p>
       </div>
+
+      {isStudio ? (
+        <div className="tb-panel mt-6">
+          <CustomDomainSettings
+            domain={customDomain}
+            saveAction={saveCustomDomain}
+            checkAction={checkCustomDomain}
+            clearAction={clearCustomDomain}
+          />
+        </div>
+      ) : (
+        <div className="tb-panel mt-6">
+          <h2 className="font-semibold">Custom domain</h2>
+          <p className="mt-1 text-sm text-[color:var(--tb-slate-soft)]">
+            Studio plans can map a client-facing hostname and get DNS
+            instructions.{" "}
+            <Link
+              href="/app/billing"
+              className="font-semibold text-[color:var(--tb-orange-deep)]"
+            >
+              Upgrade to Studio
+            </Link>{" "}
+            when you want brand overlay readiness (host mapping comes after the
+            Cloudflare cutover).
+          </p>
+        </div>
+      )}
 
       <div className="tb-panel mt-6 space-y-2 text-sm">
         <p>

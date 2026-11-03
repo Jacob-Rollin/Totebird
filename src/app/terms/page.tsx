@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { TotebirdLogo } from "@/components/logo";
+import { PublicSiteHeader } from "@/components/public-site-header";
+import { hasClerkPublishable } from "@/lib/env-public";
 
 export const metadata = { title: "Terms" };
 
@@ -10,12 +11,11 @@ export const dynamic = "force-static";
 
 export default function TermsPage() {
   return (
-    <div className="min-h-screen bg-[color:var(--tb-mist)]">
-      <header className="border-b border-[color:var(--tb-line)] bg-white">
-        <div className="tb-shell py-3">
-          <TotebirdLogo size="sm" variant="header" />
-        </div>
-      </header>
+    <div className="min-h-dvh bg-[color:var(--tb-mist)]">
+      <PublicSiteHeader
+        clerkEnabled={hasClerkPublishable()}
+        guest="legal"
+      />
       <main className="tb-shell max-w-2xl py-12">
         <p className="rounded-lg bg-[color:var(--tb-orange-soft)] px-3 py-2 text-sm text-[color:var(--tb-slate)]">
           Template / placeholder — replace with counsel-reviewed terms before

@@ -100,8 +100,8 @@ export default async function BillingPage({
         Stripe remains the source of truth for subscriptions and payouts.
       </p>
       <p className="mt-3 rounded-lg border border-[color:var(--tb-line)] bg-white px-4 py-3 text-sm text-[color:var(--tb-slate)]">
-        Subscriptions (Solo/Studio) pay Totebird. Client invoice payments go to
-        you via Stripe Connect — connect in{" "}
+        Subscriptions (Solo/Studio) pay Totebird via Stripe Checkout. Client
+        invoice payments go to you via Stripe Connect — connect in{" "}
         <Link
           href="/app/settings"
           className="font-semibold text-[color:var(--tb-orange-deep)]"
@@ -109,6 +109,9 @@ export default async function BillingPage({
           Settings
         </Link>
         . Free plan invoices include a 1% platform fee; Solo/Studio are 0%.
+      </p>
+      <p className="mt-2 text-xs text-[color:var(--tb-slate-soft)]">
+        Billing &amp; payouts via Stripe
       </p>
 
       {q.upgraded === "1" && (
@@ -137,6 +140,10 @@ export default async function BillingPage({
           {active} active of{" "}
           {Number.isFinite(limits.activeLinks) ? limits.activeLinks : "∞"} links ·{" "}
           {storageUsageMessage(used, plan)}
+        </p>
+        <p className="mt-2 text-xs text-[color:var(--tb-slate-soft)]">
+          Only active links use a slot. Closed/archived links still count toward
+          storage until you permanently Delete them (and their files).
         </p>
       </div>
 

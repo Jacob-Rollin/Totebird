@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AdminFilter } from "@/components/admin-filter";
+import { DeleteLinkButton } from "@/components/delete-link-button";
 import { StatusPill } from "@/components/status-pill";
 import { listAllInvoices } from "@/lib/data";
 import { formatDate, formatMoney } from "@/lib/format";
@@ -13,7 +14,8 @@ export default async function AdminInvoicesPage() {
     <div>
       <h1 className="font-display text-3xl">Invoices</h1>
       <p className="mt-1 text-sm text-[color:var(--tb-slate-soft)]">
-        Stripe Dashboard remains source of truth for payouts and refunds.
+        Stripe Dashboard remains source of truth for payouts and refunds. Delete
+        removes the invoice link and related rows (no automatic Stripe refund).
       </p>
       <div className="mt-6">
         <AdminFilter placeholder="Filter by title, owner, status…">
@@ -42,13 +44,20 @@ export default async function AdminInvoicesPage() {
                     <td>{formatDate(r.dueAt)}</td>
                     <td>{formatDate(r.createdAt)}</td>
                     <td>
-                      <Link
-                        href={`/i/${r.token}`}
-                        className="text-sm text-[color:var(--tb-orange-deep)]"
-                        target="_blank"
-                      >
-                        Open
-                      </Link>
+                      <div className="flex flex-col items-end gap-1">
+                        <Link
+                          href={`/i/${r.token}`}
+                          className="text-sm text-[color:var(--tb-orange-deep)]"
+                          target="_blank"
+                        >
+                          Open
+                        </Link>
+                        <DeleteLinkButton
+                          linkId={r.linkId}
+                          redirectTo="/admin/invoices"
+                          variant="link"
+                        />
+                      </div>
                     </td>
                   </tr>
                 ))}

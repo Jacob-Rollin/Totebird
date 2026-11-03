@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { TotebirdLogo } from "@/components/logo";
+import { PublicSiteHeader } from "@/components/public-site-header";
 import { demoStore } from "@/db/demo-store";
+import { hasClerkPublishable } from "@/lib/env-public";
 import { formatMoney } from "@/lib/format";
 
 export const metadata = {
@@ -14,15 +15,8 @@ export default function DemoPage() {
   const done = items.filter((i) => i.done).length;
 
   return (
-    <div className="min-h-screen tb-hero-bg">
-      <header className="border-b border-[color:var(--tb-line)]/70 bg-white/70 backdrop-blur">
-        <div className="tb-shell flex items-center justify-between py-3">
-          <TotebirdLogo size="md" variant="header" />
-          <Link href="/" className="text-sm font-medium text-[color:var(--tb-slate-soft)]">
-            Back home
-          </Link>
-        </div>
-      </header>
+    <div className="min-h-dvh tb-hero-bg">
+      <PublicSiteHeader clerkEnabled={hasClerkPublishable()} guest="demo" />
 
       <main className="tb-shell py-12 sm:py-16">
         <h1 className="font-display text-3xl text-[color:var(--tb-ink)] sm:text-4xl">

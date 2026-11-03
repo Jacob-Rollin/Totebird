@@ -48,6 +48,12 @@ export const changelogKindEnum = pgEnum("changelog_kind", [
   "fix",
   "improvement",
 ]);
+export const customDomainStatusEnum = pgEnum("custom_domain_status", [
+  "pending",
+  "verified",
+  "failed",
+  "disabled",
+]);
 
 export const users = pgTable(
   "users",
@@ -261,6 +267,37 @@ export const changelogEntries = pgTable(
   ],
 );
 
+/**
+ * Studio custom hostname (v1): store DNS intent + verification status.
+ * Guest /c and /i links still serve on totebird.com until host mapping ships.
+ */
+export const customDomains = pgTable(
+  "custom_domains",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id),
+    hostname: text("hostname").notNull(),
+    status: customDomainStatusEnum("status").notNull().default("pending"),
+    verificationToken: text("verification_token").notNull(),
+    lastCheckedAt: timestamp("last_checked_at", { withTimezone: true }),
+    verifiedAt: timestamp("verified_at", { withTimezone: true }),
+    statusDetail: text("status_detail"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("custom_domains_hostname_idx").on(t.hostname),
+    uniqueIndex("custom_domains_user_id_idx").on(t.userId),
+    index("custom_domains_status_idx").on(t.status),
+  ],
+);
+
 export type User = typeof users.$inferSelect;
 export type Link = typeof links.$inferSelect;
 export type ChecklistItem = typeof checklistItems.$inferSelect;
@@ -270,3 +307,4 @@ export type InvoiceLineItem = typeof invoiceLineItems.$inferSelect;
 export type Event = typeof events.$inferSelect;
 export type Feedback = typeof feedback.$inferSelect;
 export type ChangelogEntry = typeof changelogEntries.$inferSelect;
+export type CustomDomain = typeof customDomains.$inferSelect;

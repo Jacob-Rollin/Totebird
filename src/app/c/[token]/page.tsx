@@ -20,7 +20,7 @@ export default async function ClientChecklistPage({
     link.status === "archived";
 
   return (
-    <div className="min-h-screen bg-[color:var(--tb-mist)]">
+    <div className="min-h-dvh bg-[color:var(--tb-mist)]">
       <header className="border-b border-[color:var(--tb-line)] bg-white">
         <div className="tb-shell flex items-center justify-between gap-3 py-4">
           <div className="flex min-w-0 items-center gap-3">
@@ -81,7 +81,7 @@ export default async function ClientChecklistPage({
           </>
         )}
         <p className="mt-10 text-center text-xs text-[color:var(--tb-slate-soft)]">
-          Powered by Totebird
+          Powered by Totebird · Delivered on Cloudflare
         </p>
       </main>
     </div>

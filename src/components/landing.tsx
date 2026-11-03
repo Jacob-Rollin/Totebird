@@ -1,10 +1,10 @@
 import Link from "next/link";
+import { LandingHeader } from "@/components/landing-header";
 import { TotebirdLogo } from "@/components/logo";
 import { SessionLink } from "@/components/session-link";
 
 /** Guest defaults — signed-in swaps happen client-side via SessionLink. */
 const CTA = {
-  signIn: { guest: "/sign-in", signedIn: "/app" },
   startFree: { guest: "/sign-up", signedIn: "/app" },
   startSolo: { guest: "/sign-up", signedIn: "/app/billing" },
   startStudio: { guest: "/sign-up", signedIn: "/app/billing" },
@@ -101,49 +101,13 @@ export function LandingPage({
   clerkEnabled?: boolean;
 }) {
   return (
-    <div className="min-h-screen text-[color:var(--tb-ink)]">
-      <header className="sticky top-0 z-40 border-b border-[color:var(--tb-line)]/70 bg-[color:var(--tb-mist)]/85 backdrop-blur-md">
-        <div className="tb-shell flex items-center justify-between gap-4 py-3">
-          <TotebirdLogo size="sm" variant="header" />
-          <nav className="hidden items-center gap-6 text-sm font-medium text-[color:var(--tb-slate-soft)] md:flex">
-            <a href="#how" className="hover:text-[color:var(--tb-ink)]">
-              How it works
-            </a>
-            <a href="#product" className="hover:text-[color:var(--tb-ink)]">
-              Product
-            </a>
-            <a href="#pricing" className="hover:text-[color:var(--tb-ink)]">
-              Pricing
-            </a>
-            <a href="#faq" className="hover:text-[color:var(--tb-ink)]">
-              FAQ
-            </a>
-          </nav>
-          <div className="flex items-center gap-2">
-            <SessionLink
-              clerkEnabled={clerkEnabled}
-              whenGuest={CTA.signIn.guest}
-              whenSignedIn={CTA.signIn.signedIn}
-              className="tb-btn tb-btn-ghost hidden sm:inline-flex text-sm"
-            >
-              Sign in
-            </SessionLink>
-            <SessionLink
-              clerkEnabled={clerkEnabled}
-              whenGuest={CTA.startFree.guest}
-              whenSignedIn={CTA.startFree.signedIn}
-              className="tb-btn tb-btn-primary text-sm px-4 py-2"
-            >
-              Start free
-            </SessionLink>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-dvh text-[color:var(--tb-ink)]">
+      <LandingHeader clerkEnabled={clerkEnabled} />
 
       <main>
         {/* Hero — brand first, one composition; one strong logo on the left */}
         <section className="tb-hero-bg relative overflow-hidden">
-          <div className="tb-shell grid min-h-[min(92vh,820px)] items-center gap-10 py-12 lg:grid-cols-[1.05fr_0.95fr] lg:gap-12 lg:py-16">
+          <div className="tb-shell grid min-h-[min(92dvh,820px)] items-center gap-10 py-12 lg:grid-cols-[1.05fr_0.95fr] lg:gap-12 lg:py-16">
             <div className="tb-rise">
               <TotebirdLogo size="hero" href={null} variant="wordmark" />
               <h1 className="font-display mt-8 max-w-xl text-4xl leading-[1.08] text-[color:var(--tb-ink)] sm:text-5xl lg:text-[3.4rem]">
@@ -158,6 +122,7 @@ export function LandingPage({
                   clerkEnabled={clerkEnabled}
                   whenGuest={CTA.startFree.guest}
                   whenSignedIn={CTA.startFree.signedIn}
+                  signedInLabel="Open app"
                   className="tb-btn tb-btn-primary"
                 >
                   Start free
@@ -205,7 +170,7 @@ export function LandingPage({
                 {
                   n: "01",
                   t: "Create a link",
-                  d: "Build a checklist with file drops, or an invoice with amount and due date — from your dashboard.",
+                  d: "Start from a template or blank checklist with file drops, or an invoice with amount and due date.",
                 },
                 {
                   n: "02",
@@ -244,8 +209,9 @@ export function LandingPage({
               Checklist and invoice — shipped together.
             </h2>
             <p className="mt-3 max-w-2xl text-[color:var(--tb-slate-soft)]">
-              Briefs and testimonials come later. v1 stays sharp: collect what you
-              need, get paid, leave the CRM bloat behind.
+              Starter templates and raised plan caps included. Briefs and
+              testimonials come later — collect what you need, get paid, leave
+              the CRM bloat behind.
             </p>
 
             <div className="mt-12 grid gap-8 lg:grid-cols-2">
@@ -261,6 +227,7 @@ export function LandingPage({
                 </p>
                 <ul className="mt-5 space-y-2 text-sm text-[color:var(--tb-slate)]">
                   <li>· Passwordless `/c/[token]` page</li>
+                  <li>· Starter templates (SEO, design, accounting…)</li>
                   <li>· Progress visible in your dashboard</li>
                   <li>· Manual reminders (auto on Solo+)</li>
                 </ul>
@@ -285,8 +252,8 @@ export function LandingPage({
             </div>
 
             <p className="mt-8 text-sm text-[color:var(--tb-slate-soft)]">
-              Coming later: creative briefs · testimonial collector · custom
-              domains
+              Studio: custom domain DNS readiness now · host mapping after
+              Cloudflare cutover. Coming later: creative briefs · testimonials
             </p>
           </div>
         </section>
@@ -314,10 +281,12 @@ export function LandingPage({
                   features: [
                     "3 active links",
                     "250 MB storage",
+                    "Checklist starter templates",
                     "Manual reminders",
                     "“Powered by Totebird”",
                   ],
                   cta: "Start free",
+                  ctaSignedIn: "Open app",
                   whenGuest: CTA.startFree.guest,
                   whenSignedIn: CTA.startFree.signedIn,
                   highlight: false,
@@ -327,13 +296,14 @@ export function LandingPage({
                   price: "$19",
                   note: "/mo · $190/yr",
                   features: [
-                    "25 active links",
-                    "25 GB storage",
+                    "50 active links",
+                    "50 GB storage",
                     "Auto reminders",
                     "Custom branding",
                     "No invoice platform fee",
                   ],
                   cta: "Start Solo",
+                  ctaSignedIn: "Open billing",
                   whenGuest: CTA.startSolo.guest,
                   whenSignedIn: CTA.startSolo.signedIn,
                   highlight: true,
@@ -344,11 +314,13 @@ export function LandingPage({
                   note: "/mo · $390/yr",
                   features: [
                     "Unlimited links (fair use)",
-                    "100 GB storage",
+                    "200 GB storage",
+                    "Custom domain settings",
                     "White-label",
                     "Seats coming later",
                   ],
                   cta: "Start Studio",
+                  ctaSignedIn: "Open billing",
                   whenGuest: CTA.startStudio.guest,
                   whenSignedIn: CTA.startStudio.signedIn,
                   highlight: false,
@@ -385,6 +357,7 @@ export function LandingPage({
                     clerkEnabled={clerkEnabled}
                     whenGuest={tier.whenGuest}
                     whenSignedIn={tier.whenSignedIn}
+                    signedInLabel={tier.ctaSignedIn}
                     className={`tb-btn mt-8 w-full ${
                       tier.highlight ? "tb-btn-primary" : "tb-btn-secondary"
                     }`}
@@ -394,6 +367,9 @@ export function LandingPage({
                 </article>
               ))}
             </div>
+            <p className="mt-8 text-center text-sm text-[color:var(--tb-slate-soft)]">
+              Billing &amp; payouts via Stripe
+            </p>
           </div>
         </section>
 
@@ -438,7 +414,19 @@ export function LandingPage({
                 },
                 {
                   q: "How big can uploads be?",
-                  a: "Default cap is 10 MB per file (configurable). Free plan includes 250 MB total storage; Solo and Studio raise that.",
+                  a: "Default cap is 10 MB per file (configurable). Free includes 250 MB total storage; Solo 50 GB; Studio 200 GB.",
+                },
+                {
+                  q: "What are starter templates?",
+                  a: "Built-in checklist packs (SEO client, design handoff, accounting intake, and more). Pick one from the dashboard or create flow, then edit before you send.",
+                },
+                {
+                  q: "Who handles login, payments, and hosting security?",
+                  a: "Freelancer sign-in is Clerk. Invoice Checkout and Connect payouts are Stripe. App and edge delivery run on Cloudflare. Totebird never stores full card numbers.",
+                },
+                {
+                  q: "Do Studio custom domains work yet?",
+                  a: "Studio Settings lets you save a hostname and shows CNAME/TXT DNS steps, with optional verification. Guest portals still open on totebird.com tokens until host mapping ships after the Cloudflare cutover — brand overlay readiness now, full hostname routing later.",
                 },
                 {
                   q: "How do invoices work with Stripe?",
@@ -446,7 +434,7 @@ export function LandingPage({
                 },
                 {
                   q: "Can I cancel or downgrade?",
-                  a: "Yes. Closing links frees Free/Solo slots anytime. Paid plans can be canceled from billing once Stripe Billing is connected — no lock-in on the product side.",
+                  a: "Yes. Closing links frees Free/Solo slots anytime (only active links count). Paid plans can be canceled from billing once Stripe Billing is connected — no lock-in on the product side.",
                 },
                 {
                   q: "Is there SMS?",
@@ -481,6 +469,7 @@ export function LandingPage({
                 clerkEnabled={clerkEnabled}
                 whenGuest={CTA.startFree.guest}
                 whenSignedIn={CTA.startFree.signedIn}
+                signedInLabel="Open app"
                 className="tb-btn tb-btn-primary"
               >
                 Start free
@@ -554,8 +543,11 @@ export function LandingPage({
           </div>
         </div>
         <div className="border-t border-[color:var(--tb-line)]">
-          <div className="tb-shell flex flex-wrap items-center justify-between gap-2 py-4 text-xs text-[color:var(--tb-slate-soft)]">
+          <div className="tb-shell flex flex-col gap-2 py-4 text-xs text-[color:var(--tb-slate-soft)] sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
             <span>© {new Date().getFullYear()} Totebird</span>
+            <span className="tracking-wide">
+              Cloudflare · Clerk · Stripe
+            </span>
             <span>Built for freelancers who hate chasing files.</span>
           </div>
         </div>

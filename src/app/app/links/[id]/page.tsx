@@ -5,6 +5,7 @@ import {
   type ChecklistFileView,
 } from "@/components/checklist-file-list";
 import { CopyButton } from "@/components/copy-button";
+import { DeleteLinkButton } from "@/components/delete-link-button";
 import { ProgressBar } from "@/components/progress-bar";
 import { StatusPill } from "@/components/status-pill";
 import { requireSession } from "@/lib/auth";
@@ -201,20 +202,30 @@ export default async function LinkDetailPage({
                 </button>
               </form>
               <form action={archiveLink}>
-                <button type="submit" className="tb-btn tb-btn-ghost text-sm">
+                <button
+                  type="submit"
+                  className="tb-btn tb-btn-ghost text-sm"
+                  title="Keep files; free an active slot"
+                >
                   Archive
                 </button>
               </form>
             </>
-          ) : (
+          ) : link.status !== "disabled" ? (
             <form action={reopenLink}>
               <button type="submit" className="tb-btn tb-btn-secondary text-sm">
                 Reopen
               </button>
             </form>
-          )}
+          ) : null}
+          <DeleteLinkButton linkId={link.id} redirectTo="/app" />
         </div>
       </div>
+      <p className="mt-3 text-xs text-[color:var(--tb-slate-soft)]">
+        Archive keeps files and frees an active slot. Delete permanently removes
+        files and frees storage. Closed/archived links still count toward storage
+        until deleted.
+      </p>
 
       <div className="tb-panel mt-8">
         <p className="tb-label">Client link</p>

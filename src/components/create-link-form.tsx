@@ -21,19 +21,36 @@ export function CreateLinkForm({
   action,
   invoiceSubmitDisabled = false,
   invoiceDisabledHint = null,
+  initialTemplateKey = "",
 }: {
   type: "checklist" | "invoice";
   action: (formData: FormData) => Promise<void>;
   /** When Connect is required but the freelancer is not ready */
   invoiceSubmitDisabled?: boolean;
   invoiceDisabledHint?: string | null;
+  /** Preselect a built-in template (e.g. from dashboard starter packs). */
+  initialTemplateKey?: string;
 }) {
-  const [templateKey, setTemplateKey] = useState("");
-  const [items, setItems] = useState<BuilderItem[]>(() => defaultBuilderItems());
+  const resolvedInitial =
+    type === "checklist" &&
+    initialTemplateKey &&
+    CHECKLIST_TEMPLATES.some((t) => t.key === initialTemplateKey)
+      ? initialTemplateKey
+      : "";
+  const [templateKey, setTemplateKey] = useState(resolvedInitial);
+  const [items, setItems] = useState<BuilderItem[]>(() => {
+    if (!resolvedInitial) return defaultBuilderItems();
+    const t = CHECKLIST_TEMPLATES.find((x) => x.key === resolvedInitial);
+    return t ? templateItemsToBuilder(t.items) : defaultBuilderItems();
+  });
   const [editAsText, setEditAsText] = useState(false);
-  const [itemsText, setItemsText] = useState(() =>
-    builderToText(defaultBuilderItems()),
-  );
+  const [itemsText, setItemsText] = useState(() => {
+    if (!resolvedInitial) return builderToText(defaultBuilderItems());
+    const t = CHECKLIST_TEMPLATES.find((x) => x.key === resolvedInitial);
+    return builderToText(
+      t ? templateItemsToBuilder(t.items) : defaultBuilderItems(),
+    );
+  });
   const [duePreset, setDuePreset] = useState("net-7");
   const [lines, setLines] = useState<LineDraft[]>([
     { description: "Project deposit", quantity: "1", amount: "1500.00" },
