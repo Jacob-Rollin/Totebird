@@ -64,10 +64,6 @@ export default function DemoPage() {
           <Link href="/app" className="font-semibold text-[color:var(--tb-orange-deep)]">
             Open the dashboard
           </Link>{" "}
-          · Founder{" "}
-          <Link href="/admin" className="font-semibold text-[color:var(--tb-orange-deep)]">
-            admin
-          </Link>{" "}
           (demo mode works without keys).
         </p>
       </main>

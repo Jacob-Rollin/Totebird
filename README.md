@@ -102,7 +102,6 @@ If `DATABASE_URL` or Clerk keys are missing (or `DEMO_MODE=true`), the app runs 
 | `/app` | Freelancer dashboard (progress %, limits, duplicate/archive) |
 | `/app/billing` | Plan UI; demo can switch Free/Solo/Studio without Stripe |
 | `/app/settings` | Onboarding checklist (Neon/Clerk/Stripe/B2/Resend/cron) |
-| `/admin` | Founder admin + search filters |
 | `/privacy`, `/terms` | Legal stubs (marked as templates) |
 | `/api/cron/reminders` | Reminder pass (logs without Resend) |
 
@@ -129,7 +128,7 @@ See [`.env.example`](./.env.example). Create Stripe Products/Prices for Solo ($1
 
 ### Founder admin
 
-`/admin` is gated to `ADMIN_EMAIL` (comma-separated) and/or `ADMIN_USER_IDS`. In demo mode with an empty allowlist, the demo session is admin.
+`/admin` is gated to `ADMIN_EMAIL` (comma-separated) and/or `ADMIN_USER_IDS` only. It is not part of the public `/demo` experience — demo sessions stay freelancer-only.
 
 ## Features (keyless-complete)
 
