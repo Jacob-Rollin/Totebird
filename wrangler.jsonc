@@ -8,11 +8,11 @@
  *
  * Files CDN Worker is separate: workers/files-b2/wrangler.toml (also keep_vars).
  *
- * Workers Builds → Settings → Build → Deploy command should be one of:
- *   npx opennextjs-cloudflare deploy -- --keep-vars
- *   npm run deploy:cf
- *   npx wrangler deploy --keep-vars
- * (after a successful OpenNext build that produces .open-next/)
+ * Workers Builds → Settings → Build (exact paste values):
+ *   Build command:  npm run build:cf
+ *   Deploy command: npx opennextjs-cloudflare deploy -- --keep-vars
+ * Plain `npm run build` / `next build` does NOT produce .open-next/;
+ * bare `npx wrangler deploy` then fails with "Could not find compiled Open Next config".
  */
 {
   "$schema": "node_modules/wrangler/config-schema.json",

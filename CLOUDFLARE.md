@@ -4,10 +4,38 @@ Two Workers on the Totebird account. They do **not** share Variables.
 
 | Worker | Repo config | How it deploys |
 |---|---|---|
-| **`totebird`** (Next.js app) | root [`wrangler.jsonc`](./wrangler.jsonc) | Workers Builds on `main` (and `npm run deploy:cf`) |
+| **`totebird`** (Next.js app) | root [`wrangler.jsonc`](./wrangler.jsonc) | Workers Builds on `main` (and `npm run build:cf` + `npm run deploy:cf`) |
 | **`totebird-files-b2`** (CDN) | [`workers/files-b2/wrangler.toml`](./workers/files-b2/wrangler.toml) | Manual `cd workers/files-b2 && npm run deploy` |
 
 Both set **`keep_vars = true`**. Without that (or `--keep-vars`), `wrangler deploy` **deletes** dashboard plaintext Variables, then applies only config `[vars]`. **Secrets are never deleted** by deploy.
+
+## Workers Builds — paste these exact commands
+
+Dashboard → Worker **`totebird`** → Settings → **Build**:
+
+| Setting | Exact value |
+|---|---|
+| **Root directory** | *(leave empty / repo root — not `workers/files-b2`)* |
+| **Build command** | `npm run build:cf` |
+| **Deploy command** | `npx opennextjs-cloudflare deploy -- --keep-vars` |
+
+Equivalents that also work:
+
+```bash
+# Build (produces .open-next/ — plain `npm run build` / `next build` is NOT enough)
+npx @opennextjs/cloudflare build
+# or: npm run build:cf
+
+# Deploy (keep_vars so dashboard Variables are not wiped)
+npx opennextjs-cloudflare deploy -- --keep-vars
+# or: npm run deploy:cf
+```
+
+**Do not** leave Deploy as bare `npx wrangler deploy` unless Build already ran OpenNext. Wrangler will call `opennextjs-cloudflare deploy`, then fail with:
+
+> Could not find compiled Open Next config, did you run the build command?
+
+Local one-shot (build + deploy): `npm run build:cf && npm run deploy:cf`.
 
 ## Immediate: re-add wiped keys as Secrets
 
@@ -32,24 +60,7 @@ Workers → **`totebird-files-b2`** → Variables and Secrets:
 |---|---|
 | **Secret** | `B2_APPLICATION_KEY`, `FILES_CDN_CHECK_SECRET`, and preferably `TOTEBIRD_APP_ORIGIN`, `B2_APPLICATION_KEY_ID`, `B2_ENDPOINT`, `BUCKET_NAME` |
 
-## Workers Builds deploy command (required)
+## Why #48 / #50 were not enough alone
 
-Dashboard → Worker **`totebird`** → Settings → **Build** → **Deploy command**:
-
-```bash
-npx opennextjs-cloudflare deploy -- --keep-vars
-```
-
-or:
-
-```bash
-npm run deploy:cf
-```
-
-`keep_vars` in `wrangler.jsonc` should be enough; the CLI flag is belt-and-suspenders if a build step regenerates config without the flag.
-
-**Root directory:** repo root (not `workers/files-b2`).
-
-## Why #48 was not enough
-
-PR #48 only patched `workers/files-b2`. Merging layout PR #49 still ran **Workers Builds: totebird**, which redeployed the **app** Worker with default `wrangler deploy` (no `keep_vars` in root config yet) and wiped that Worker’s plaintext Variables again.
+- PR #48 only patched `workers/files-b2`. Merging layout PR #49 still ran **Workers Builds: totebird** without root `keep_vars` and wiped app plaintext Variables.
+- PR #50 added root `keep_vars` + OpenNext packages, but the dashboard **Build command** was still `npm run build` (`next build` only). Deploy then failed looking for `.open-next/`.
