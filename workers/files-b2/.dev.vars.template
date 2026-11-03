@@ -1,5 +1,10 @@
 # Copy to .dev.vars for `npx wrangler dev` (never commit .dev.vars)
+# Production: set these in Cloudflare dashboard / wrangler secret put —
+# they are intentionally omitted from wrangler.toml [vars] (keep_vars).
 B2_APPLICATION_KEY = "<your b2 application key>"
+B2_APPLICATION_KEY_ID = "<your b2 application key id>"
+B2_ENDPOINT = "<s3.REGION.backblazeb2.com>"
+BUCKET_NAME = "your-b2-bucket-name"
 # Optional revoke-on-close (match app FILES_CDN_CHECK_SECRET)
 # TOTEBIRD_APP_ORIGIN = "http://localhost:3000"
 # FILES_CDN_CHECK_SECRET = "<same random string as app>"

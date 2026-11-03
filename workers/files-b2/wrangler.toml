@@ -1,10 +1,17 @@
 # Totebird CDN Worker — private B2 downloads at files.totebird.com
 # Source adapted from https://github.com/backblaze-b2-samples/cloudflare-b2
 #
-# Do NOT put B2_APPLICATION_KEY in this file.
+# Do NOT put B2_APPLICATION_KEY or FILES_CDN_CHECK_SECRET in this file.
 #   echo "<applicationKey>" | npx wrangler secret put B2_APPLICATION_KEY
+#   echo "<cdn-check-secret>" | npx wrangler secret put FILES_CDN_CHECK_SECRET
 #
-# Fill the placeholders below to match your Backblaze bucket, then:
+# Dashboard plaintext Variables (B2_APPLICATION_KEY_ID, B2_ENDPOINT, BUCKET_NAME,
+# TOTEBIRD_APP_ORIGIN, …) survive deploys because keep_vars = true.
+# Keys listed under [vars] below are still written on every deploy — keep only
+# safe non-environment defaults here; set real B2 / origin values in the
+# Cloudflare dashboard (or as Secrets), not as placeholders in this file.
+#
+# Fill dashboard vars / secrets, then:
 #   npm install && npx wrangler deploy
 
 name = "totebird-files-b2"
@@ -12,19 +19,23 @@ workers_dev = true
 compatibility_date = "2023-09-04"
 main = "index.js"
 
+# Preserve Cloudflare-dashboard plaintext Variables that are not in [vars].
+# Without this, `wrangler deploy` deletes dashboard-only vars before applying
+# [vars] (Secrets are never deleted by deploy). Supported Wrangler 3.78+ / 4.x.
+# Docs: https://developers.cloudflare.com/workers/wrangler/configuration/#source-of-truth
+keep_vars = true
+
 [vars]
-# Same value as Netlify B2_KEY_ID (or a read-only app key ID for this bucket)
-B2_APPLICATION_KEY_ID = "<your b2 application key id>"
-# Host only — no https:// — e.g. s3.us-west-004.backblazeb2.com
-B2_ENDPOINT = "<s3.REGION.backblazeb2.com>"
-# Exact bucket name so https://files.totebird.com/<object-key> maps 1:1
-# Placeholder only — set the real name in Cloudflare dashboard / wrangler vars
-# (or Netlify B2_BUCKET). Do not commit the production bucket name.
-BUCKET_NAME = "your-b2-bucket-name"
+# Safe defaults only — do not put real bucket/key/endpoint/origin placeholders
+# here or deploy will overwrite dashboard values for those keys.
 ALLOW_LIST_BUCKET = "false"
 RCLONE_DOWNLOAD = "false"
-# App origin for revoke-on-close checks (no trailing slash)
-# TOTEBIRD_APP_ORIGIN = "https://www.totebird.com"
-# Shared secret — also set FILES_CDN_CHECK_SECRET on the app host.
-# Prefer: npx wrangler secret put FILES_CDN_CHECK_SECRET
-# FILES_CDN_CHECK_SECRET is a secret; do not put the real value here.
+
+# Set these in Cloudflare → Worker → Settings → Variables and Secrets
+# (plain Variable or Secret). They are intentionally omitted from [vars]
+# so deploys do not clobber them:
+#   B2_APPLICATION_KEY_ID  — same as Netlify B2_KEY_ID (or read-only key ID)
+#   B2_ENDPOINT            — host only, e.g. s3.us-west-004.backblazeb2.com
+#   BUCKET_NAME            — exact B2 bucket name
+#   TOTEBIRD_APP_ORIGIN    — https://www.totebird.com (no trailing slash)
+# Prefer Secret for FILES_CDN_CHECK_SECRET (and optionally TOTEBIRD_APP_ORIGIN).
